@@ -21,14 +21,17 @@ Equations unzip (t: Tree) (k: A) : Tree * Tree :=
  Goal forall a b, unzip t k = (a, b) ->  elements t = elements a ++ delta (occursb t k) k ++ elements b.
  *)
 
-Fixpoint down (t: Tree) (k: A) (r: nat) {struct t} : Tree :=
-  match t with
-  | Node t1 kt rt t2 =>
-      if is_higher_rank rt kt r k then
-        if kt <? k then Node t1 kt rt (down t2 k r) else Node (down t1 k r) kt rt t2
-      else let (st, gt) := unzip t k in Node st k r gt
-  | Leaf => let (st, gt) := unzip t k in Node st k r gt
-  end.
+Equations down (t: Tree) (k: A) (r: nat) : Tree :=
+| Leaf, k, r => singleton_list k r
+| Node t1 kt rt t2, k, r with is_higher_rank rt kt r k => {
+  | false with unzip (Node t1 kt rt t2) k => {
+      | (st, gt) => Node st k r gt
+    }
+  | true with kt <? k => {
+    | false => Node (down t1 k r) kt rt t2
+    | true => Node t1 kt rt (down t2 k r)
+    }
+  }.
 
 Definition insert (t: Tree) (k: nat) : Tree := down t k (rank_of k).
 
@@ -105,7 +108,12 @@ Qed.
 Lemma down_elts_occurs_k : forall t k r,
     abr t -> occurs k t -> elements t = elements (down t k r).
 Proof.
-  
+  intros t k r. funelim (down t k r); try easy.
+  - rewrite <- Heqcall. simp elements. intros. apply abr_node in H0 as H2. do 2 f_equal. intuition. apply H5.
+    apply Nat.ltb_lt in Heq. eapply abr_gt_occurs; eauto.
+  - rewrite <- Heqcall. simp elements. intros. apply abr_node in H0 as H2. f_equal. intuition. apply H5. unfold is_higher_rank in *. cut (k = kt \/ k < kt).
+    + intuition.
+      * subst.
 Abort.
 
 
