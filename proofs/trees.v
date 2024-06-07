@@ -16,6 +16,11 @@ Equations unzip (t: Tree) (k: A) : Tree * Tree :=
       }
     }.
 
+(*Goal forall a b, unzip t k = (a, b) -> occurs k t -> elements t = elements a ++ [k] ++ elements b
+ Goal forall a b, unzip t k = (a, b) ->  ~ (occurs k t) -> elements t = elements a ++ elements b
+ Goal forall a b, unzip t k = (a, b) ->  elements t = elements a ++ delta (occursb t k) k ++ elements b.
+ *)
+
 Fixpoint down (t: Tree) (k: A) (r: nat) {struct t} : Tree :=
   match t with
   | Node t1 kt rt t2 =>
@@ -42,102 +47,69 @@ Inductive heap_higher_rank: Tree -> Prop :=
 
 Definition zip_tree (t: Tree) : Prop := heap_higher_rank t /\ abr t.
 
-Lemma occurs_unzip : forall t k x, occurs x t -> x = k \/ occurs x (fst (unzip t k)) \/ occurs x (snd (unzip t k)).
+#[local] Hint Rewrite app_assoc: app.
+
+Lemma unzip_elts_occurs_k : forall t k a b, abr t ->
+    unzip t k = (a, b) -> occurs k t ->
+    elements t = elements a ++ [k] ++ elements b.
 Proof.
-  intros t k x. funelim (unzip t k); eauto 10; apply couple_to_fst_snd in Heqcall;
-    destruct Heqcall as [Hfst Hsnd];
-    rewrite <- Hfst, <- Hsnd;
-    try solve [apply Nat.eqb_eq in H; subst; eauto]; (* résout le cas où k = la racine *)
-    (* résout les 2 cas récursifs *)
-    intro Hocc;
-    apply occurs_rec_direct in Hocc;
-    repeat destruct Hocc as [Hocc | Hocc] using or_ind; eauto 10;
-    apply Hind in Hocc; apply eq_sym, couple_to_fst_snd in Heq; destruct Heq; subst;
-    repeat destruct Hocc as [Hocc | Hocc] using or_ind; eauto 10.
+  intros t k. funelim (unzip t k); try easy.
+  - intros. subst. apply Nat.eqb_eq in H. subst. rewrite <- Heqcall in *. inversion H1. subst. auto.
+  - intros. rewrite <- Heqcall in *. inversion H2. subst. simp elements. autorewrite with app. repeat f_equal.
+    rewrite <- app_assoc.
+    apply abr_node in H1 as Habr. intuition. apply Hind; auto. apply Nat.ltb_lt in H0.
+    eapply abr_lt_occurs; eauto.
+  - intros. rewrite <- Heqcall in *. inversion H2. subst. simp elements.
+    replace ((elements t1 ++ [kt] ++ elements st2) ++ [k] ++ elements b)
+      with (elements t1 ++ [kt] ++ elements st2 ++ [k] ++ elements b) by autorewrite with app using auto.
+    repeat f_equal. apply abr_node in H1 as Habr. intuition. apply Hind; auto. apply opti_tricho in H; auto.
+      eapply abr_gt_occurs; eauto.
 Qed.
 
-Lemma occurs_fst_unzip : forall t k x, occurs x (fst (unzip t k)) -> occurs x t.
+Lemma unzip_elts_not_occurs_k : forall t k a b,
+    abr t -> unzip t k = (a, b) -> ~ occurs k t -> elements t = elements a ++ elements b.
 Proof.
-  intros t k x. funelim (unzip t k);
-    auto;
-    apply couple_to_fst_snd in Heqcall;
-    destruct Heqcall as [Hfst Hsnd]; rewrite <- Hfst; auto; apply eq_sym, couple_to_fst_snd in Heq;
-    destruct Heq; subst; auto.
-  intro Hocc. apply occurs_rec_direct in Hocc.
-  repeat destruct Hocc as [Hocc | Hocc] using or_ind; subst; auto.
+  intros t k. funelim (unzip t k).
+  - simp unzip. intros. inversion H0. auto.
+  - intros. rewrite Nat.eqb_eq in H. subst. absurd (kt ∈ Node t1 kt r t2); auto.
+  - intros. rewrite <- Heqcall in *. inversion H2. subst. simp elements. autorewrite with app. repeat f_equal.
+    apply abr_node in H1 as Habr. intuition. apply Hind; eauto.
+  - intros. rewrite <- Heqcall in *. inversion H2. subst. simp elements. replace ((elements t1 ++ [kt] ++ elements st2) ++ elements b)
+      with (elements t1 ++ [kt] ++ elements st2 ++ elements b) by autorewrite with app using auto.
+    repeat f_equal. apply abr_node in H1 as Habr. intuition. apply Hind; eauto.
 Qed.
 
-Lemma occurs_snd_unzip : forall t k x, occurs x (snd (unzip t k)) -> occurs x t.
+Lemma unzip_elts_occursb : forall t k a b,
+    abr t -> unzip t k = (a, b) -> elements t = elements a ++ delta (occursb k t) k ++ elements b.
+  intros t k. remember (occursb k t). destruct b.
+  - apply eq_sym, occursb_correct in Heqb. intros. simpl delta. apply unzip_elts_occurs_k; auto.
+  - apply eq_sym in Heqb. intros. simpl. eapply unzip_elts_not_occurs_k; eauto. intro.
+    apply occursb_correct in H1. rewrite Heqb in H1. discriminate.
+Qed.
+
+Lemma unzip_preserves_abr_fst : forall t k a b,
+    abr t -> unzip t k = (a, b) -> abr a.
 Proof.
-  intros t k x. funelim (unzip t k);
-    auto;
-    apply couple_to_fst_snd in Heqcall;
-    destruct Heqcall as [Hfst Hsnd]; rewrite <- Hsnd; auto; apply eq_sym, couple_to_fst_snd in Heq;
-    destruct Heq; subst; auto.
-  intro Hocc. apply occurs_rec_direct in Hocc.
-  repeat destruct Hocc as [Hocc | Hocc] using or_ind; subst; auto.
+  unfold abr.
+  intros. rewrite (unzip_elts_occursb _ k a b) in H; auto.
+  eauto using StronglySorted_app_inv_l.
 Qed.
 
-
-Lemma unzip_preserves_smaller_fst : forall t k x, all_smallers t x -> all_smallers (fst (unzip t k)) x.
-  unfold all_smallers. intros. apply occurs_fst_unzip in H0. eauto.
-Qed.
-
-Lemma unzip_preserves_smaller_snd : forall t k x, all_smallers t x -> all_smallers (snd (unzip t k)) x.
-  unfold all_smallers. intros. apply occurs_snd_unzip in H0. eauto.
-Qed.
-
-Lemma unzip_preserves_greater_fst : forall t k x, all_greaters t x -> all_greaters (fst (unzip t k)) x.
-  unfold all_greaters. intros. apply occurs_fst_unzip in H0. eauto.
-Qed.
-
-Lemma unzip_preserves_greater_snd : forall t k x, all_greaters t x -> all_greaters (snd (unzip t k)) x.
-  unfold all_greaters. intros. apply occurs_snd_unzip in H0. eauto.
-Qed.
-
-Lemma unzip_abr_small :
-  forall t k, abr t -> abr ((unzip t k).1).
+Lemma unzip_preserves_abr_snd : forall t k a b,
+    abr t -> unzip t k = (a, b) -> abr b.
 Proof.
-  intros t k. unfold abr. funelim (unzip t k); eauto;
-    apply couple_to_fst_snd in Heqcall; destruct Heqcall as [Hfst Hsnd];
-    rewrite <- Hfst; unfold abr; simp elements.
-  - eauto using StronglySorted_app_inv_l.
-  - rewrite Heq in Hind. eauto using StronglySorted_app_inv_l.
-  - Search (LocallySorted _ (_ ++ _)).
+  unfold abr. intros. rewrite (unzip_elts_occursb _ k a b) in H; auto.
+  eauto using StronglySorted_app_inv_r.
+Qed.
+
+Lemma down_elts_occurs_k : forall t k r,
+    abr t -> occurs k t -> elements t = elements (down t k r).
+Proof.
+  
 Abort.
-(*Lemma unzip_smaller_greater :
-  forall t k, abr t -> all_smallers (fst (unzip t k)) k /\ all_greaters (snd (unzip t k)) k.
-  intros t k H. induction H. simp unzip; simpl; auto. remember (k =? k0). destruct b.
-  - apply eq_sym, Nat.eqb_eq in Heqb. subst. auto.
-  - remember (k <? k0). destruct b.
-    + apply eq_sym, Nat.ltb_lt in Heqb0. destruct (unzip t1 k). simpl. destruct IHabr1.
-      eauto using greaters_trans.
-    + apply opti_tricho in Heqb; auto. destruct (unzip t2 k). simpl. destruct IHabr2.
-      split; eauto using smaller_trans.
-Qed.
 
-Lemma unzip_preserves_abr_small :
-  forall t k, abr t -> abr (fst (unzip t k)).
-Proof.
-  intros t k H. induction H; simpl; auto. remember (k =? k0). destruct b; auto.
-  remember (k <? k0). destruct b.
-  - remember (unzip t1 k). destruct p. simpl in IHabr1. simpl. auto.
-  - apply eq_sym in Heqb, Heqb0. remember (unzip t2 k). destruct p. simpl in IHabr2. simpl.
-    constructor; auto. destruct (couple_to_fst_snd Heqp).
-    subst. auto using unzip_preserves_greater_fst.
-Qed.
 
-Lemma unzip_preserves_abr_great : forall t k, abr t -> abr (snd (unzip t k)).
-Proof.
-  intros t k H. induction H; simpl; auto. remember (k =? k0). destruct b; auto.
-  remember (k <? k0). destruct b.
-  - remember (unzip t1 k). destruct p. simpl in IHabr1. simpl. constructor; auto.
-    destruct (couple_to_fst_snd Heqp). subst.
-    auto using unzip_preserves_smaller_snd.
-  - remember (unzip t2 k). destruct p. simpl in IHabr2. simpl.
-    auto.
-Qed.
-
+(*
 
       
 Lemma occurs_down : forall t k r x, occurs x (down t k r) -> occurs x t \/ x = k.
