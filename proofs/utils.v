@@ -17,6 +17,15 @@ Proof.
   auto.
 Qed.
 
+Lemma ltb_neqb : forall {a b}, a <? b = true -> a =? b = false.
+Proof.
+  intros. apply Nat.eqb_neq, Nat.lt_neq, Nat.ltb_lt. auto.
+Qed.
+
+Lemma ltb_antisymm : forall {a b}, a <? b = true -> b <? a = false.
+  intros. apply Nat.ltb_nlt, Nat.lt_asymm, Nat.ltb_lt. auto.
+Qed.
+
 Lemma occursb_list_correct : forall l x, occursb_list x l = true <-> (x ∈ l)%stdpp.
   intros. funelim (occursb_list x l).
   - easy.

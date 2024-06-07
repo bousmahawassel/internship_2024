@@ -103,17 +103,45 @@ Proof.
   eauto using StronglySorted_app_inv_r.
 Qed.
 
-Lemma down_elts_occurs_k : forall t k,
+Lemma insert_elts : forall t k a b,
+    abr t -> unzip t k = (a, b) -> elements (insert t k) = elements a ++ [k] ++ elements b.
+Proof.
+  intros t k. funelim (insert t k).
+  - simp unzip insert. intros. unfold singleton_list. inversion H0. auto.
+  - rewrite <- Heqcall. intros. simp elements. remember (unzip t2 k). destruct p. specialize (H t t0).
+    apply abr_node in H0 as Habr. intuition. rewrite H. simp unzip in H1. rewrite Nat.eqb_sym in *. apply ltb_neqb in Heq as Hneq. apply ltb_antisymm in Heq.
+      rewrite Hneq, Heq in H1. simpl in H1. rewrite <- Heqp in H1. simpl in H1. inversion H1. subst. simp elements.
+    repeat rewrite app_assoc. auto.
+  - rewrite <- Heqcall. intros. unfold is_higher_rank in *. assert (kt =? k = false).
+    + apply Nat.eqb_neq. intro. subst. apply orb_prop in Heq0. intuition.
+      * rewrite Nat.ltb_irrefl in H2. discriminate.
+      * apply andb_prop in H2. intuition. rewrite Nat.ltb_irrefl in H4. discriminate.
+    + apply opti_tricho in Heq; auto. simp elements. remember (unzip t1 k). destruct p. specialize (H t t0).
+      apply abr_node in H0 as Habr. intuition. rewrite H. simp unzip in H1. rewrite Nat.eqb_sym in H2.
+      rewrite H2 in H1. apply Nat.ltb_lt in Heq. rewrite Heq in H1. simpl in H1. rewrite <- Heqp in H1.
+      simpl in H1. inversion H1. simp elements. repeat (rewrite app_assoc). auto.
+  - rewrite <- Heqcall. rewrite Heq. simp elements. intros. inversion H0. subst. auto.
+Qed.
+
+(*Lemma down_elts_occurs_k : forall t k,
     abr t -> occurs k t -> elements t = elements (insert t k).
 Proof.
   intros t k. funelim (insert t k); try easy.
   - rewrite <- Heqcall. simp elements. intros. apply abr_node in H0 as H2. do 2 f_equal. intuition. apply H5.
     apply Nat.ltb_lt in Heq. eapply abr_gt_occurs; eauto.
   - rewrite <- Heqcall. simp elements. intros. apply abr_node in H0 as H2. f_equal. intuition. apply H5. unfold is_higher_rank in *. cut (k = kt \/ k < kt).
-    + intuition.
-      * subst.
-Abort.
+    + intuition; eauto using abr_lt_occurs. subst. apply orb_prop in Heq0. intuition.
+      * rewrite Nat.ltb_irrefl in H. discriminate.
+      * apply andb_prop in H. intuition. rewrite Nat.ltb_irrefl in *. discriminate.
+    + remember (k =? kt). destruct b.
+      * apply eq_sym, Nat.eqb_eq in Heqb. auto.
+      * apply opti_tricho in Heq; auto. rewrite Nat.eqb_sym. auto.
+  - rewrite <- Heqcall. intros. remember (Node t1 kt t2). simp elements. apply unzip_elts_occurs_k; assumption.
+Qed.
 
+Lemma down_elts_not_occurs_k : forall t k,
+    abr t -> occurs k t -> elements t
+*)
 
 (*
 
