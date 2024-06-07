@@ -10,13 +10,13 @@ Definition A := nat.
 
 Parameter rank_of : A -> nat.
 
-Inductive Tree : Type := Leaf: Tree | Node: Tree -> A -> nat -> Tree -> Tree.
+Inductive Tree : Type := Leaf: Tree | Node: Tree -> A  -> Tree -> Tree.
 
-Definition singleton_list (k: A) (r: nat) : Tree := Node Leaf k r Leaf.
+Definition singleton_list (k: A) : Tree := Node Leaf k Leaf.
 
 Equations elements (t: Tree) : list A :=
   elements Leaf := [];
-  elements (Node t1 k r t2) := (elements t1) ++ [k] ++ (elements t2).
+  elements (Node t1 k t2) := (elements t1) ++ [k] ++ (elements t2).
 
 Definition occurs (x: A) (t: Tree) := x ∈ elements t.
 

@@ -32,9 +32,9 @@ Lemma occursb_correct : forall t x, occursb x t = true <-> x ∈ t.
 Qed.
 
 (* Prouve une forme de récurrence sur occurs*)
-Lemma occurs_rec : forall x t1 k r t2, x ∈ (Node t1 k r t2) <-> x = k \/ x ∈ t1 \/ x ∈ t2.
+Lemma occurs_rec : forall x t1 k t2, x ∈ (Node t1 k t2) <-> x = k \/ x ∈ t1 \/ x ∈ t2.
 Proof.
-  intros x t1 k r t2. unfold occurs. funelim (elements (Node t1 k r t2)); inversion eqargs.  subst. split.
+  intros x t1 k t2. unfold occurs. funelim (elements (Node t1 k t2)); inversion eqargs.  subst. split.
   - intro.
     repeat (apply elem_of_app in H1; destruct H1);
       try apply elem_of_list_singleton in H1;
@@ -48,11 +48,11 @@ Qed.
 
 (* Si on met seulement l'équivalence dans [core], pour une raison que j'ignore, eauto ne
 l'utilise pas. Je crée donc 2 versions implicatives*)
-Lemma occurs_rec_direct : forall x t1 k r t2, x ∈ Node t1 k r t2 -> x = k \/ x ∈ t1 \/ x ∈ t2.
+Lemma occurs_rec_direct : forall x t1 k t2, x ∈ Node t1 k t2 -> x = k \/ x ∈ t1 \/ x ∈ t2.
   apply occurs_rec.
 Qed.
 
-Lemma occurs_rec_recipr : forall x t1 k r t2, x = k \/ x ∈ t1 \/ x ∈ t2 -> x ∈ Node t1 k r t2.
+Lemma occurs_rec_recipr : forall x t1 k t2, x = k \/ x ∈ t1 \/ x ∈ t2 -> x ∈ Node t1 k t2.
   apply occurs_rec.
 Qed.
 
@@ -162,7 +162,7 @@ Qed.
 Close Scope stdpp_scope.
 
 
-Theorem abr_node : forall t1 k r t2, abr (Node t1 k r t2) <->
+Theorem abr_node : forall t1 k t2, abr (Node t1 k t2) <->
                                   abr t1 /\ abr t2 /\ all_smallers t1 k /\ all_greaters t2 k.
   intros. unfold abr. simp elements. split.
   - intuition eauto using StronglySorted_app_inv_l, StronglySorted_app_inv_r.
@@ -172,16 +172,14 @@ Theorem abr_node : forall t1 k r t2, abr (Node t1 k r t2) <->
   - intuition eauto 10 using sorted_app, StronglySorted, Forall_lt_direct, pairwise_app_right_recipr, pairwise_transitive_singleton, Forall_lt_direct, Forall_gt_direct.
 Qed.
 
-(*#[export] Hint Extern 10 => eapply Forall_forall: core.*)
-
-Lemma abr_lt_occurs : forall t1 k r t2 x, abr (Node t1 k r t2) -> x ∈ Node t1 k r t2 -> x < k -> x ∈ t1.
+Lemma abr_lt_occurs : forall t1 k t2 x, abr (Node t1 k t2) -> x ∈ Node t1 k t2 -> x < k -> x ∈ t1.
 Proof.
   intros. apply abr_node in H. intuition. apply occurs_rec in H0.
   intuition; absurd (x < k); subst; eauto using Nat.lt_irrefl.
   apply Nat.lt_asymm. eapply Forall_forall; eauto.
 Qed.
 
-Lemma abr_gt_occurs : forall t1 k r t2 x, abr (Node t1 k r t2) -> x ∈ Node t1 k r t2 -> k < x -> x ∈ t2.
+Lemma abr_gt_occurs : forall t1 k t2 x, abr (Node t1 k t2) -> x ∈ Node t1 k t2 -> k < x -> x ∈ t2.
 Proof.
   intros. apply abr_node in H. apply occurs_rec in H0.
   intuition; absurd (k < x); subst; eauto using Nat.lt_irrefl.

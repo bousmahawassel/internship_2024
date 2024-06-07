@@ -1,18 +1,18 @@
 From BalancedTrees Require Import definitions utils.
 
-Definition is_higher_rank (r1: nat) (k1: A) (r2: nat) (k2 : A) : bool :=
-  (r2 <? r1) || ((r1 =? r2) && (k1 <? k2)).
+Definition is_higher_rank (k1: A) (k2 : A) : bool :=
+  (rank_of k2 <? rank_of k1) || ((rank_of k1 =? rank_of k2) && (k1 <? k2)).
 
 (* coupe t en 2 sous-arbre : les éléments plus petits et les éléments plus grands *)
 Equations unzip (t: Tree) (k: A) : Tree * Tree :=
   | Leaf, k => (Leaf, Leaf)
-  | Node t1 kt r t2, k with (k =? kt, k <? kt) => {
+  | Node t1 kt t2, k with (k =? kt, k <? kt) => {
     | (true, _) => (t1, t2)
     | (_, true) with unzip t1 k => {
-        | (st1, gt1) => (st1, Node gt1 kt r t2)
+        | (st1, gt1) => (st1, Node gt1 kt t2)
       }
     | _ with unzip t2 k => {
-        | (st2, gt2) => (Node t1 kt r st2, gt2)
+        | (st2, gt2) => (Node t1 kt st2, gt2)
       }
     }.
 
@@ -21,32 +21,30 @@ Equations unzip (t: Tree) (k: A) : Tree * Tree :=
  Goal forall a b, unzip t k = (a, b) ->  elements t = elements a ++ delta (occursb t k) k ++ elements b.
  *)
 
-Equations down (t: Tree) (k: A) (r: nat) : Tree :=
-| Leaf, k, r => singleton_list k r
-| Node t1 kt rt t2, k, r with is_higher_rank rt kt r k => {
-  | false with unzip (Node t1 kt rt t2) k => {
-      | (st, gt) => Node st k r gt
+Equations insert (t: Tree) (k: A) : Tree :=
+| Leaf, k => singleton_list k
+| Node t1 kt t2, k with is_higher_rank kt k => {
+  | false with unzip (Node t1 kt t2) k => {
+      | (st, gt) => Node st k gt
     }
   | true with kt <? k => {
-    | false => Node (down t1 k r) kt rt t2
-    | true => Node t1 kt rt (down t2 k r)
+    | false => Node (insert t1 k) kt t2
+    | true => Node t1 kt (insert t2 k)
     }
   }.
 
-Definition insert (t: Tree) (k: nat) : Tree := down t k (rank_of k).
-
-Definition is_higher_rank_than_root (t: Tree) (r: nat) (k: A) : bool :=
+Definition is_higher_rank_than_root (t: Tree) (k: A) : bool :=
   match t with
   | Leaf => true
-  | Node _ r1 k1 _ => is_higher_rank r k r1 k1
+  | Node _ k1 _ => is_higher_rank k k1
   end.
 
 Inductive heap_higher_rank: Tree -> Prop :=
 | leaf_heap : heap_higher_rank Leaf
-| rec_heap : forall t1 r k t2,
+| rec_heap : forall t1 k t2,
     heap_higher_rank t1 -> heap_higher_rank t2 ->
-    is_higher_rank_than_root t1 r k = true -> is_higher_rank_than_root t2 r k = true ->
-    heap_higher_rank (Node t1 k r t2).
+    is_higher_rank_than_root t1 k = true -> is_higher_rank_than_root t2 k = true ->
+    heap_higher_rank (Node t1 k t2).
 
 Definition zip_tree (t: Tree) : Prop := heap_higher_rank t /\ abr t.
 
@@ -74,7 +72,7 @@ Lemma unzip_elts_not_occurs_k : forall t k a b,
 Proof.
   intros t k. funelim (unzip t k).
   - simp unzip. intros. inversion H0. auto.
-  - intros. rewrite Nat.eqb_eq in H. subst. absurd (kt ∈ Node t1 kt r t2); auto.
+  - intros. rewrite Nat.eqb_eq in H. subst. absurd (kt ∈ Node t1 kt t2); auto.
   - intros. rewrite <- Heqcall in *. inversion H2. subst. simp elements. autorewrite with app. repeat f_equal.
     apply abr_node in H1 as Habr. intuition. apply Hind; eauto.
   - intros. rewrite <- Heqcall in *. inversion H2. subst. simp elements. replace ((elements t1 ++ [kt] ++ elements st2) ++ elements b)
@@ -105,10 +103,10 @@ Proof.
   eauto using StronglySorted_app_inv_r.
 Qed.
 
-Lemma down_elts_occurs_k : forall t k r,
-    abr t -> occurs k t -> elements t = elements (down t k r).
+Lemma down_elts_occurs_k : forall t k,
+    abr t -> occurs k t -> elements t = elements (insert t k).
 Proof.
-  intros t k r. funelim (down t k r); try easy.
+  intros t k. funelim (insert t k); try easy.
   - rewrite <- Heqcall. simp elements. intros. apply abr_node in H0 as H2. do 2 f_equal. intuition. apply H5.
     apply Nat.ltb_lt in Heq. eapply abr_gt_occurs; eauto.
   - rewrite <- Heqcall. simp elements. intros. apply abr_node in H0 as H2. f_equal. intuition. apply H5. unfold is_higher_rank in *. cut (k = kt \/ k < kt).
