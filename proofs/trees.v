@@ -103,6 +103,32 @@ Proof.
   eauto using StronglySorted_app_inv_r.
 Qed.
 
+Lemma unzip_smallers : forall t k a b, abr t -> unzip t k = (a, b) -> all_smallers a k.
+Proof.
+  intros t k. funelim (unzip t k).
+  -  simp unzip. intros. inversion H0. subst. constructor.
+  - apply Nat.eqb_eq in H. subst. intros. apply abr_node in H. intuition. rewrite H0 in Heqcall.
+    inversion Heqcall. subst. auto.
+  - intros. apply abr_node in H1. specialize (Hind st1 gt1). intuition. rewrite H2 in Heqcall. inversion Heqcall.
+    subst. auto.
+  - intros. apply abr_node in H1. specialize (Hind st2 gt2). intuition. rewrite H2 in Heqcall. inversion Heqcall.
+    subst. unfold all_smallers. simp elements. apply opti_tricho in H; auto.
+    repeat (apply Forall_app; intuition eauto). eapply smaller_trans; eauto.
+Qed.
+
+Lemma unzip_greaters : forall t k a b, abr t -> unzip t k = (a, b) -> all_greaters b k.
+Proof.
+  intros t k. funelim (unzip t k).
+  -  simp unzip. intros. inversion H0. subst. constructor.
+  - apply Nat.eqb_eq in H. subst. intros. apply abr_node in H. intuition. rewrite H0 in Heqcall.
+    inversion Heqcall. subst. auto.
+  - intros. apply abr_node in H1. specialize (Hind st1 gt1). intuition. rewrite H2 in Heqcall. inversion Heqcall.
+    subst. unfold all_greaters. simp elements. apply Nat.ltb_lt in H0.
+    repeat (apply Forall_app; intuition eauto). eapply greater_trans; eauto.
+  - intros. apply abr_node in H1. specialize (Hind st2 gt2). intuition. rewrite H2 in Heqcall. inversion Heqcall.
+    subst. auto.
+Qed.
+
 Lemma insert_elts : forall t k a b,
     abr t -> unzip t k = (a, b) -> elements (insert t k) = elements a ++ [k] ++ elements b.
 Proof.
@@ -123,103 +149,144 @@ Proof.
   - rewrite <- Heqcall. rewrite Heq. simp elements. intros. inversion H0. subst. auto.
 Qed.
 
-(*Lemma down_elts_occurs_k : forall t k,
-    abr t -> occurs k t -> elements t = elements (insert t k).
+Lemma insert_elts_set : forall t k x, abr t ->
+    x ∈ insert t k <-> x ∈ t \/ x = k.
+  unfold occurs. intros t k x H. remember (unzip t k). destruct p as [a b]. rewrite (insert_elts _ _ a b); auto.
+  intuition.
+  - repeat rewrite elem_of_app in H0. intuition.
+    + rewrite (unzip_elts_occursb _ k a b); auto. repeat rewrite elem_of_app; auto.
+    + apply elem_of_list_singleton in H0. auto.
+    + rewrite (unzip_elts_occursb _ k a b); auto. repeat rewrite elem_of_app; auto.
+  - rewrite (unzip_elts_occursb _ k a b) in H1; auto. repeat rewrite elem_of_app in *. intuition auto.
+    destruct (occursb k t); simpl in *; auto.
+    inversion H1.
+  - repeat rewrite elem_of_app in *. rewrite elem_of_list_singleton. auto.
+Qed.
+
+Lemma insert_abr : forall t k,
+    abr t -> abr (insert t k).
+Proof. unfold abr.
+  intros t k H. remember (unzip t k). destruct p as [a b].
+  rewrite (insert_elts t k a b); auto. assert (Helts := H). rewrite (unzip_elts_occursb  _ k a b) in Helts; auto.
+  assert (([k] ≺ elements b)%stdpp) by (eapply Forall_lt_direct, unzip_greaters; eauto).
+  repeat apply sorted_app; auto.
+  - eapply unzip_preserves_abr_fst; eauto.
+  - constructor; auto. constructor.
+  - eapply unzip_preserves_abr_snd; eauto.
+  - apply pairwise_app_right_recipr.
+    assert (elements a ≺ [k])%stdpp by (eapply Forall_gt_direct, unzip_smallers; eauto). intuition auto.
+    eauto using pairwise_transitive_singleton.
+Qed.
+
+Lemma is_higher_rank_tricho : forall k k0,
+    is_higher_rank k k0 = true \/ k = k0 \/ is_higher_rank k0 k = true.
+  intros. unfold is_higher_rank. destruct (Nat.lt_trichotomy (rank_of k) (rank_of k0)) as [H | [H | H]].
+  - apply Nat.ltb_lt in H. rewrite H. auto.
+  - apply Nat.eqb_eq in H. rewrite H. rewrite Nat.eqb_sym in H. rewrite H.
+    destruct (Nat.lt_trichotomy k k0) as [H0 | [H0 | H0]]; auto;
+      apply Nat.ltb_lt in H0; rewrite H0; auto using orb_true_intro.
+  - apply Nat.ltb_lt in H. rewrite H. auto.
+Qed.
+
+Lemma is_higher_rank_than_root_trans : forall t x x0,
+    is_higher_rank x0 x = true ->
+    is_higher_rank_than_root t x = true ->
+    is_higher_rank_than_root t x0 = true.
+  intros. destruct t; auto. simpl. inversion H0. rewrite H2.
+  unfold is_higher_rank in *. apply orb_prop in H, H2. intuition (try apply andb_prop in H; try apply andb_prop in H2).
+  - apply orb_true_intro. left. rewrite Nat.ltb_lt in *. eauto using Nat.lt_trans.
+  - apply orb_true_intro. intuition. apply Nat.eqb_eq in H2. rewrite H2 in H1. auto.
+  - apply orb_true_intro. apply andb_prop in H1. intuition. apply Nat.eqb_eq in H2. rewrite H2 in *. auto.
+  - apply andb_prop in H1. intuition. rewrite Nat.ltb_lt, Nat.eqb_eq in *. rewrite H2, H1. apply orb_true_intro.
+    right. apply andb_true_intro. rewrite Nat.ltb_lt, Nat.eqb_eq. eauto using Nat.lt_trans.
+Qed.
+
+Lemma unzip_preserves_is_higher_rank_than_root_fst : forall t k a b x,
+    unzip t k = (a, b) ->
+    heap_higher_rank t ->
+    is_higher_rank_than_root t x = true ->
+    (*is_higher_rank x k ->*)
+    is_higher_rank_than_root a x = true.
 Proof.
-  intros t k. funelim (insert t k); try easy.
-  - rewrite <- Heqcall. simp elements. intros. apply abr_node in H0 as H2. do 2 f_equal. intuition. apply H5.
-    apply Nat.ltb_lt in Heq. eapply abr_gt_occurs; eauto.
-  - rewrite <- Heqcall. simp elements. intros. apply abr_node in H0 as H2. f_equal. intuition. apply H5. unfold is_higher_rank in *. cut (k = kt \/ k < kt).
-    + intuition; eauto using abr_lt_occurs. subst. apply orb_prop in Heq0. intuition.
-      * rewrite Nat.ltb_irrefl in H. discriminate.
-      * apply andb_prop in H. intuition. rewrite Nat.ltb_irrefl in *. discriminate.
-    + remember (k =? kt). destruct b.
-      * apply eq_sym, Nat.eqb_eq in Heqb. auto.
-      * apply opti_tricho in Heq; auto. rewrite Nat.eqb_sym. auto.
-  - rewrite <- Heqcall. intros. remember (Node t1 kt t2). simp elements. apply unzip_elts_occurs_k; assumption.
+  intros t k a b x. funelim (unzip t k).
+  - simp unzip. intros. inversion H. auto.
+  - intros. inversion H1. apply Nat.eqb_eq in H. rewrite H0 in Heqcall. inversion Heqcall. subst.
+    eauto using is_higher_rank_than_root_trans.
+  - rewrite <- Heqcall. intros. inversion H1. subst. specialize (Hind a gt1 x). inversion H2. subst. inversion H3.
+    rewrite H5. intuition. apply H6; eauto using is_higher_rank_than_root_trans.
+  - rewrite <- Heqcall. intros. inversion H1. intuition.
 Qed.
 
-Lemma down_elts_not_occurs_k : forall t k,
-    abr t -> occurs k t -> elements t
-*)
-
-(*
-
-      
-Lemma occurs_down : forall t k r x, occurs x (down t k r) -> occurs x t \/ x = k.
-  intros t k r x. induction t.
-  - simpl. intro H. inversion H; subst; auto.
-  - simpl. destruct (is_higher_rank n a r k).
-    + destruct (a <? k);
-        intro;
-        inversion H;
-        subst;
-        eauto using occurs;
-        (destruct (IHt1 H2) || destruct (IHt2 H2)); eauto using occurs.
-    + destruct (k =? a).
-      * intro. inversion H; subst; auto using occurs.
-      * destruct (k <? a).
-        -- remember (unzip t1 k);
-             destruct p;
-             intro;
-             inversion H;
-             subst;
-             auto.
-           ++ left. apply left_occurs. eapply occurs_fst_unzip. rewrite <- Heqp. auto.
-           ++ inversion H2; subst; auto. left. constructor 2. eapply occurs_snd_unzip.
-              rewrite <- Heqp. auto.
-        -- remember (unzip t2 k).
-           destruct p.
-           intro.
-           inversion H; subst; auto.
-           ++ inversion H2; subst; auto. left. constructor 3. eapply occurs_fst_unzip.
-              rewrite <- Heqp. auto.
-           ++ left. constructor 3. eapply occurs_snd_unzip. rewrite <- Heqp. auto.
+Lemma unzip_preserves_is_higher_rank_than_root_snd : forall t k a b x,
+    unzip t k = (a, b) ->
+    heap_higher_rank t ->
+    is_higher_rank_than_root t x = true ->
+    (*is_higher_rank x k ->*)
+    is_higher_rank_than_root b x = true.
+Proof.
+  intros t k a b x. funelim (unzip t k).
+  - simp unzip. intros. inversion H. auto.
+  - intros. inversion H1. apply Nat.eqb_eq in H. rewrite H0 in Heqcall. inversion Heqcall. subst.
+    eauto using is_higher_rank_than_root_trans.
+  - rewrite <- Heqcall. intros. inversion H1. intuition.
+  - rewrite <- Heqcall. intros. inversion H1. subst. specialize (Hind st2 b x). inversion H2. subst. inversion H3.
+    rewrite H5. intuition. apply H6; eauto using is_higher_rank_than_root_trans.
 Qed.
 
-Lemma down_preserves_abr : forall t k r, ~(occurs k t) -> abr t -> abr (down t k r).
-  intros t k r H. induction t.
-  - intro. simpl. constructor; constructor.
-  - intro. inversion H0. subst. simpl. remember (is_higher_rank n a r k). destruct b.
-    + remember (a <? k). destruct b.
-      * constructor; auto. apply occurs_greaters. intros.
-        apply occurs_down in H1. apply eq_sym in Heqb0. apply Nat.ltb_lt in Heqb0.
-        destruct H1; subst; auto. eapply occurs_greaters; eauto.
-      * constructor; auto. apply occurs_smallers. intros. apply occurs_down in H1.
-        destruct H1; subst; auto.
-        -- eapply occurs_smallers; eauto.
-        -- unfold is_higher_rank in Heqb. remember (k <? a). destruct b.
-           ++ apply eq_sym in Heqb1. apply Nat.ltb_lt. auto.
-           ++ simpl in Heqb. apply eq_sym in Heqb0, Heqb1. apply Nat.ltb_ge in Heqb0, Heqb1.
-              exfalso. cut (a = k).
-              ** intro. subst. auto using occurs.
-              ** apply Nat.le_antisymm; auto.
-    + remember (k =? a). destruct b.
-      * apply eq_sym, Nat.eqb_eq in Heqb0. subst. constructor; auto.
-      * remember (k <? a). destruct b.
-        -- apply eq_sym, Nat.ltb_lt in Heqb1. remember (unzip t1 k). destruct p.
-           constructor;
-             destruct (couple_to_fst_snd Heqp);
-             subst;
-             eauto using unzip_preserves_abr_small,
-             unzip_preserves_abr_great,
-             unzip_preserves_smaller_snd,
-             unzip_smaller_greater.
-           ++ apply unzip_smaller_greater. auto.
-           ++ constructor; eauto using greaters_trans. apply unzip_smaller_greater. auto.
-        -- apply opti_tricho in Heqb0; auto. remember (unzip t2 k). destruct p.
-           destruct (couple_to_fst_snd Heqp). subst.
-           constructor; auto using unzip_preserves_greater_fst,
-             unzip_preserves_abr_small,
-             unzip_preserves_abr_great.
-           ++ constructor; auto.
-              ** eapply smaller_trans; eauto.
-              ** apply unzip_smaller_greater. auto.
-           ++ apply unzip_smaller_greater. auto.
+Lemma unzip_preserves_heap_fst : forall t k a b, unzip t k = (a, b) -> heap_higher_rank t -> heap_higher_rank a.
+Proof.
+  intros t k a b. funelim (unzip t k).
+  - simp unzip. intros. inversion H. auto.
+  - rewrite <- Heqcall. intros. inversion H0. subst. inversion H1. auto.
+  - rewrite <- Heqcall. intros. inversion H1. subst. specialize (Hind a gt1). inversion H2. intuition auto.
+  - rewrite <- Heqcall. intros. inversion H1. subst. specialize (Hind st2 b). inversion H2.
+    constructor; eauto using unzip_preserves_is_higher_rank_than_root_fst.
 Qed.
-Theorem down_correct : forall t k r,
+
+Lemma unzip_preserves_heap_snd : forall t k a b, unzip t k = (a, b) -> heap_higher_rank t -> heap_higher_rank b.
+Proof.
+  intros t k a b. funelim (unzip t k).
+  - simp unzip. intros. inversion H. auto.
+  - rewrite <- Heqcall. intros. inversion H0. subst. inversion H1. auto.
+  - rewrite <- Heqcall. intros. inversion H1. subst. specialize (Hind a gt1). inversion H2.
+    constructor; eauto using unzip_preserves_is_higher_rank_than_root_snd.
+  - rewrite <- Heqcall. intros. inversion H1. subst. specialize (Hind st2 b). inversion H2. intuition auto.
+Qed.
+
+Lemma insert_preserves_is_higher_rank_than_root : forall t k x,
+    is_higher_rank_than_root t x = true ->
+    is_higher_rank x k = true ->
+    is_higher_rank_than_root (insert t k) x = true.
+Proof. unfold is_higher_rank_than_root.
+  intros. destruct t.
+  - simp insert.
+  - inversion H. simp insert. remember (is_higher_rank a k). destruct b; simpl.
+    + destruct (a <? k); simpl; auto.
+    + destruct (unzip (Node t1 a t2) k). simpl. transitivity true; auto.
+Qed.
+
+Lemma insert_preserves_heap : forall t k, heap_higher_rank t -> heap_higher_rank (insert t k).
+  intros t k. funelim (insert t k).
+  - simp insert. unfold singleton_list. auto using heap_higher_rank.
+  - intro. inversion H0. subst. intuition. rewrite <- Heqcall.
+    constructor; auto using insert_preserves_is_higher_rank_than_root.
+  - intro. inversion H0. subst. intuition. rewrite <- Heqcall.
+    constructor; auto using insert_preserves_is_higher_rank_than_root.
+  - intro H0.  inversion H0. subst. intuition. rewrite <- Heqcall.
+    constructor; eauto using unzip_preserves_heap_fst, unzip_preserves_heap_snd.
+    + destruct (is_higher_rank_tricho kt k) as [Hrank | [Hrank | Hrank]].
+      * rewrite Heq0 in Hrank. discriminate.
+      * subst. simp unzip in Heq. rewrite Nat.eqb_refl in Heq. simpl in Heq. inversion Heq. subst. auto.
+      * eapply unzip_preserves_is_higher_rank_than_root_fst; eauto.
+    + destruct (is_higher_rank_tricho kt k) as [Hrank | [Hrank | Hrank]].
+      * rewrite Heq0 in Hrank. discriminate.
+      * subst. simp unzip in Heq. rewrite Nat.eqb_refl in Heq. simpl in Heq. inversion Heq. subst. auto.
+      * eapply unzip_preserves_is_higher_rank_than_root_snd; eauto.
+Qed.
+
+Theorem insert_correct : forall t k,
     zip_tree t ->
-    zip_tree (down t k r) /\ (forall y, occurs y (down t k r) <-> occurs y t \/ y=k).
-Abort.
-*)
-
+    zip_tree (insert t k) /\ (forall y, y ∈ (insert t k) <-> occurs y t \/ y=k).
+Proof.
+  intros. unfold zip_tree in *. destruct H. auto using insert_preserves_heap, insert_abr, insert_elts_set.
+Qed.
