@@ -109,7 +109,7 @@ Ltac get_root :=
 
 Ltac get_heap :=
   match goal with
-  | H : heap (Node _ _ _) |- _ => inversion H; subst end.
+  | H : heap (Node _ _ _) |- _ => inversion H; subst; clear H end.
 
 Ltac simp_unzip_leaf :=
   match goal with
@@ -302,7 +302,7 @@ Lemma insert_preserves_heap : forall t k, heap t -> heap (insert t k).
     eauto using heap, insert_preserves_is_higher_rank_than_root.    
   - rewrite <- Heqcall. apply is_higher_rank_dec in Heq0.
     eauto using heap, insert_preserves_is_higher_rank_than_root.
-  - intro H0. get_heap. rewrite <- Heqcall.
+  - intro H0. rewrite <- Heqcall.
     constructor; eauto using unzip_preserves_heap_fst, unzip_preserves_heap_snd;
       destruct (is_higher_rank_tricho (Some kt) (Some k)) as [ Hrank | [Hrank | Hrank]];
       eauto using unzip_preserves_is_higher_rank_than_root_fst, unzip_preserves_is_higher_rank_than_root_snd.
@@ -317,4 +317,38 @@ Theorem insert_correct : forall t k,
     zip_tree (insert t k) /\ (forall y, y ∈ (insert t k) <-> occurs y t \/ y=k).
 Proof.
   intros. unfold zip_tree in *. destruct H. auto using insert_preserves_heap, insert_abr, insert_elts_set.
+Qed.
+
+Lemma root_max_heap : forall t1 k t2 x, heap (Node t1 k t2) -> x ∈ Node t1 k t2 -> x = k \/ k !≻ x.
+Proof.
+  intros. get_heap. apply occurs_rec in H0. destruct H0; auto. destruct H.
+  - right. induction H4; try easy. get_root. apply occurs_rec in H. destruct H; try congruence.
+    destruct H; eauto using is_higher_rank_than_root_trans, heap.
+  - right. induction H5; try easy. get_root. apply occurs_rec in H. destruct H; try congruence.
+    destruct H; eauto using is_higher_rank_than_root_trans, heap.
+Qed.
+
+
+(* un lemme très simple mais qui revient plusieurs fois *)
+Lemma Leaf_node_dont_have_same_elts : forall t1 k t2, ¬(forall y, y ∈ Leaf <-> y ∈ Node t1 k t2).
+  intuition. specialize (H k). intuition. absurd (k ∈ Leaf); auto; easy.
+Qed.
+
+Ltac solve_same_elts_node_leaf := solve [exfalso; eapply Leaf_node_dont_have_same_elts; easy].
+
+Theorem unique_zip_tree : forall t t', zip_tree t -> zip_tree t' -> (forall y, y ∈ t <-> y ∈ t') -> t = t'.
+Proof.
+  intro. induction t.
+  - intros. destruct t'; auto. solve_same_elts_node_leaf.
+  - unfold zip_tree. intuition. destruct t'; try solve_same_elts_node_leaf.
+    assert (a = a0).
+    { assert (a0 ∈ Node t1 a t2) by (specialize (H1 a0); intuition auto). apply root_max_heap in H0; auto.
+      destruct H0; auto. assert (a ∈ Node t'1 a0 t'2) by (specialize (H1 a); intuition auto).
+      apply root_max_heap in H5; auto. destruct H5; auto. inversion H0; inversion H5; intuition lia. }
+    subst. f_equal; auto.
+    + apply IHt1; split; auto; apply abr_node in H3 as Habr1, H4 as Habr2; intuition;
+        unfold all_smallers in *; rewrite Forall_forall in *; unfold gt in *; eapply (abr_lt_occurs _ a0); eauto;
+        apply H1; auto.
+    + apply IHt2; split; auto; apply abr_node in H3 as Habr1, H4 as Habr2; intuition;
+        unfold all_greaters in *; rewrite Forall_forall in *; eapply (abr_gt_occurs _ a0); eauto; apply H1; auto.
 Qed.
