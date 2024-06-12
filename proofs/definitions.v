@@ -12,6 +12,12 @@ Parameter rank_of : A -> nat.
 
 Inductive Tree : Type := Leaf: Tree | Node: Tree -> A  -> Tree -> Tree.
 
+Definition root (t: Tree) : option A :=
+  match t with
+  | Leaf => None
+  | Node _ k _ => Some k
+  end.
+
 Definition singleton_list (k: A) : Tree := Node Leaf k Leaf.
 
 Equations elements (t: Tree) : list A :=
