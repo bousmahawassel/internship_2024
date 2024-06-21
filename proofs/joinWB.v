@@ -96,117 +96,6 @@ Inductive WB : Tree -> Prop :=
 | WBLeaf : WB Leaf
 | WBNode : forall l v r, WB l -> WB r -> like_weights (weight l) (weight r) -> WB (Node l v r).
 
-(*Equations balance_maybe_right_heavy (l: Tree) (v: A) (r: Tree) : Tree :=
-| l, v, r with not_right_heavy (weight l) (weight r) => {
-  | true => Node l v r (* évacue le maybe *)
-  | false with r => {
-    | Leaf => Leaf (* Ce cas n'a pas de sens, cf lemme *)
-    | Node rl rv rr
-      with like_weights (weight l) (weight rl), like_weights (weight l + weight rl) (weight rr)
-      => {
-      | true, true => Node (Node l v rl) rv rr
-      | _, _ with rl => {
-        | Leaf => Leaf (* apparemment c'est absurde aussi, mais je sais pas encore pourquoi *)
-        | Node rll rlv rlr => Node (Node l v rll) rlv (Node rlr rv rr)
-        }
-      }
-    }
-  }.
-
-Lemma dead_rl_leaf : forall l r rl rv rr,
-    not_right_heavy (weight l) (weight r) = false ->
-    r = Node rl rv rr ->
-    like_weights (weight l) (weight rl) && like_weights (weight l + weight rl) (weight rr) = false ->
-    WB r ->
-    rl = Leaf -> False.
-Proof.
-  intros. subst. inversion H2. subst. unfold like_weights, not_right_heavy in *.
-  rewrite left_heavy_Leaf_false in *. apply andb_prop in H7. intuition. clear H0 H2 H5.
-  remember (weight_ge_one rr).
-  remember (not_left_heavy (weight l) (weight Leaf)) as b eqn: Heqb; destruct b;
-    apply eq_sym in Heqb;
-    remember (not_left_heavy (weight l + weight Leaf) (weight rr)) as b eqn: Heqb0; destruct b;
-    apply eq_sym in Heqb0;
-    remember (not_left_heavy (weight rr) (weight l + weight Leaf)) as b eqn: Heqb1; destruct b;
-    apply eq_sym in Heqb1;
-    try discriminate;
-    simp weight in *;
-    unfold not_left_heavy, alpha in *; rewrite Nat.leb_le, Nat.leb_gt in *; try lia.
-Qed.
-
-Equations balance_maybe_left_heavy (l: Tree) (v: A) (r: Tree) : Tree :=
-| l, v, r with not_left_heavy (weight l) (weight r) => {
-  | true => Node l v r (* évacue le maybe *)
-  | false with l => {
-    | Leaf => Leaf (* Ce cas n'a pas de sens, cf lemme *)
-    | Node ll lv lr
-      with like_weights (weight r) (weight lr), like_weights (weight r + weight lr) (weight ll)
-      => {
-      | true, true => Node ll lv (Node lr v r)
-      | _, _ with lr => {
-        | Leaf => Leaf (* apparemment c'est absurde aussi, mais je sais pas encore pourquoi *)
-        | Node lrl lrv lrr => Node (Node ll lv lrl) lrv (Node lrr v r)
-        }
-      }
-    }
-  }.
-
-
-
-Lemma dead_lr_leaf : forall l r ll lv lr,
-    not_left_heavy (weight l) (weight r) = false ->
-    l = Node ll lv lr ->
-    like_weights (weight r) (weight lr) &&
-      like_weights (weight r + weight lr) (weight ll) = false ->
-    WB l ->
-    lr = Leaf -> False.
-Proof.
-  intros. subst. inversion H2. subst. unfold like_weights, not_right_heavy in *.
-  rewrite left_heavy_Leaf_false in *. apply andb_prop in H7. intuition. clear H3 H2 H5.
-  remember (weight_ge_one ll).
-  remember (not_left_heavy (weight r) (weight Leaf)) as b eqn: Heqb; destruct b;
-    apply eq_sym in Heqb;
-    remember (not_left_heavy (weight r + weight Leaf) (weight ll)) as b eqn: Heqb0; destruct b;
-    apply eq_sym in Heqb0;
-    remember (not_left_heavy (weight ll) (weight r + weight Leaf)) as b eqn: Heqb1; destruct b;
-    apply eq_sym in Heqb1;
-    try discriminate;
-    simp weight in *;
-    unfold not_left_heavy, alpha in *; rewrite Nat.leb_le, Nat.leb_gt in *; try lia.
-Qed.
-
-(* J'ai fusionné [join_left_heavy] dans [join_maybe_left_heavy]*)
-Equations join_maybe_left_heavy (l: Tree) (v: A) (r: Tree) : Tree :=
-| l, v, r with (not_left_heavy (weight l) (weight r)) => {
-  | true => Node l v r (* évacue le maybe *)
-  | false with l => {
-    | Leaf => Leaf (* Ce cas n'a pas de sens, cf lemme *)
-    | Node ll lv lr =>
-        balance_maybe_right_heavy ll lv (join_maybe_left_heavy lr v r)
-    }
-  }
-.
-
-Equations join_maybe_right_heavy (l: Tree) (v: A) (r: Tree) : Tree :=
-| l, v, r with not_right_heavy (weight l) (weight r) => {
-  | true => Node l v r (* évacue le maybe *)
-  | false with r => {
-    | Leaf => Leaf (* Ce cas n'a pas de sens, cf lemme *)
-    | Node rl rv rr =>
-        balance_maybe_left_heavy (join_maybe_right_heavy l v rl) rv rr
-    }
-  }
-.
-
-Definition join l v r : Tree :=
-  if not_left_heavy (weight l) (weight r) then
-    if not_right_heavy (weight l) (weight r) then
-      Node l v r
-    else
-      join_maybe_right_heavy l v r
-  else
-    join_maybe_left_heavy l v r.*)
-
 Equations rotate_left (l: Tree) (v: A) (r: Tree) : Tree :=
 | l, v, Leaf => Leaf (* should not be called *)
 | l, v, Node rl rv rr => Node (Node l v rl) rv rr
@@ -259,6 +148,11 @@ Equations join_maybe_right_heavy (T__L: Tree) (k: A) (T__R: Tree) : Tree :=
     }
   }.
 
+Definition join T__L k T__R :=
+  if not_left_heavyb (weight T__L) (weight T__R)
+  then join_maybe_right_heavy T__L k T__R
+  else join_maybe_left_heavy T__L k T__R.
+
 Ltac elim_join_left :=
   match goal with
   | |- context[join_maybe_left_heavy ?a ?b ?c] =>
@@ -284,64 +178,6 @@ Ltac elim_join_right :=
       end;
       eauto
   end.
-(*
-Lemma join_maybe_left_heavy_no_leaf : forall T__L k T__R,
-    WB T__L -> WB T__R -> not_right_heavy (weight T__L) (weight T__R) ->
-    join_maybe_left_heavy T__L k T__R <> Leaf.
-  intros. elim_join_left.
-  - eauto using left_heavy_not_leaf.
-  - inversion H. intuition. apply H10; auto. simp weight in *.
-    unfold like_weights, not_right_heavy, not_left_heavy, alpha in *. lia.
-  - inversion H. subst. destruct l1; simp rotate_right; simp rotate_left; auto.
-    exfalso. simp weight in *.
-    unfold like_weights, not_right_heavy, not_left_heavy, alpha in *. clear Hind H.
-    destruct Heq; try lia. intuition. assert (weight l < 3) by lia.
-    assert (weight c < 5) by lia. assert (weight T__R < 3) by lia. assert (weight r1 > 4) by lia.
-    remember (weight_ge_one T__R). assert (weight l = 1 \/ weight l = 2) by lia.
-    assert (weight T__R = 1 \/ weight T__R = 2) by lia.
-    assert (weight c = 1 \/ weight c = 2 \/ weight c = 3 \/ weight c = 4) by lia. intuition try lia.
-    + subst. rewrite H15, H12, H14 in *. clear H2 H3 H7 H9 H10 H4 H8 H1 Heq3.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-  - 
- *)
-(*
-Lemma join_maybe_left_heavy_keeps_weight : forall T__L k T__R,
-    WB T__L -> not_right_heavy (weight T__L) (weight T__R) ->
-    weight T__L + weight T__R = weight (join_maybe_left_heavy T__L k T__R).
-Proof.
-  intros. elim_join_left.
-  - apply left_heavy_not_leaf in Heq. congruence.
-  - inversion H. subst. rewrite Heq in *. simp weight in *.
-    unfold like_weights, not_right_heavy, not_left_heavy, alpha in *. remember (weight_ge_one c).
-    remember (weight_ge_one T__R). intuition. lia.
-  - rewrite Heq0 in *. simp weight in *. inversion H. rewrite <- Hind; try hauto.
-    unfold like_weights, not_right_heavy, not_left_heavy, alpha in *. lia.
-  - rewrite Heq2 in *. simp rotate_left. simp weight in *. 
-    enough (weight c + weight T__R = weight l1 + weight r1) by hauto. inversion H.
-    apply Hind; auto. unfold like_weights, not_right_heavy, not_left_heavy, alpha in *. lia.
-  - inversion H. subst. rewrite Heq2 in *.
-    assert (not_right_heavy (weight c) (weight T__R)).
-    + simp weight in *. unfold like_weights, not_right_heavy, not_left_heavy, alpha in *.
-      intuition try lia.
-    + specialize (Hind H5 H1). destruct l1.
-      * simp weight in *. unfold like_weights, not_right_heavy, not_left_heavy, alpha in *.
-        lia.
-      * simp rotate_right. simp rotate_left. simp weight in *. lia.
-  - inversion H. subst. rewrite Heq1 in *.
-    assert (not_right_heavy (weight c) (weight T__R)).
-    + simp weight in *. unfold like_weights, not_right_heavy, not_left_heavy, alpha in *.
-      intuition try lia.
-    + specialize (Hind H5 H1). destruct l1.
-      * simp weight in *. unfold like_weights, not_right_heavy, not_left_heavy, alpha in *.
-        intuition try lia. exfalso. clear Heq1 H H4 H5 H0. admit.
-      * simp rotate_right. simp rotate_left. simp weight in *. lia.
-Qed.
- *)
 
 Ltac lia_autosolve :=
   match goal with
@@ -451,48 +287,11 @@ Proof.
     + simp rotate_left rotate_right. simp elements in *.
       intuition aac_rewrite H9; aac_reflexivity.
 Qed.
-(*
-Lemma balance_maybe_left_elements : forall l v r, WB l ->
-    elements (balance_maybe_left_heavy l v r) = elements l ++ [v] ++ elements r.
-  intros. funelim (balance_maybe_left_heavy l v r); rewrite <- Heqcall; auto.
-  - apply left_heavy_not_leaf in Heq. congruence.
-  - simp elements. autorewrite with app using auto.
-  - exfalso. eapply dead_lr_leaf; eauto. rewrite Heq0. auto.
-  - simp elements. autorewrite with app using auto.
-  - exfalso. eapply dead_lr_leaf; eauto. rewrite Heq.
-    destruct (like_weights (weight r) (weight Leaf)); auto.
-  - simp elements. autorewrite with app using auto.
-Qed.
 
-Lemma balance_maybe_right_elements : forall l v r, WB r ->
-    elements (balance_maybe_right_heavy l v r) = elements l ++ [v] ++ elements r.
-  intros. funelim (balance_maybe_right_heavy l v r); rewrite <- Heqcall; auto.
-  - apply left_heavy_not_leaf in Heq. congruence.
-  - simp elements. autorewrite with app using auto.
-  - exfalso. eapply dead_rl_leaf; eauto. rewrite Heq0. auto.
-  - simp elements. autorewrite with app using auto.
-  - exfalso. eapply dead_rl_leaf; eauto. rewrite Heq. auto.
-  - simp elements. autorewrite with app using auto.
-Qed.
-
-Lemma join_WB : forall l v r, WB l -> WB r -> WB (join l v r).
-
-Lemma join_elements : forall l v r,
-    WB l -> WB r -> elements (join l v r) = elements l ++ [v] ++ elements r.
+Lemma joinWB : forall T__L k T__R, WB T__L -> WB T__R -> WB (join T__L k T__R) /\ elements (join T__L k T__R) =  elements (Node T__L k T__R).
 Proof.
-  intros. unfold join. destruct (not_left_heavy (weight l) (weight r)).
-  - destruct (not_right_heavy (weight l) (weight r)); auto.
-    funelim (join_maybe_right_heavy l v r); try congruence.
-    + rewrite <- Heqcall. auto.
-    + apply left_heavy_not_leaf in Heq. congruence.
-    + rewrite <- Heqcall. rewrite balance_maybe_left_elements.
-      * inversion H1. subst. rewrite H; auto. simp elements. autorewrite with app using auto.
-      * admit.
-  - funelim (join_maybe_left_heavy l v r); try congruence.
-    + rewrite <- Heqcall; auto.
-    + apply left_heavy_not_leaf in Heq. congruence.
-    + rewrite <- Heqcall. rewrite balance_maybe_right_elements.
-      * inversion H0. subst. rewrite H; auto. simp elements. autorewrite with app using auto.
-      * admit.
-Admitted.
-*)
+  intros. unfold join. remember (not_left_heavyb (weight T__L) (weight T__R)) as b; destruct b.
+  - apply join_maybe_right_heavyWB; auto. rewrite not_left_heavy_equiv. auto.
+  - apply join_maybe_left_heavyWB; auto. apply eq_sym in Heqb. rewrite  <- not_left_heavy_equiv_false in Heqb.
+    unfold not_right_heavy, not_left_heavy, alpha in *. lia.
+Qed.
