@@ -2,3 +2,4 @@
 proofs/definitions.v
 proofs/utils.v
 proofs/trees.v
+proofs/joinWB.v
