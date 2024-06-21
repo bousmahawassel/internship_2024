@@ -1,7 +1,8 @@
 From Hammer Require Import Tactics.
 From BalancedTrees Require Import definitions utils.
 From AAC_tactics Require Import AAC.
-From AAC_tactics Require Instances.
+From AAC_tactics Require Import Instances.
+Import Lists.
 
 Equations weight (t: Tree) : nat :=
 | Leaf => 1
@@ -237,6 +238,27 @@ Equations join_maybe_left_heavy (T__L: Tree) (k: A) (T__R: Tree) : Tree :=
     }
   }.
 
+Equations join_maybe_right_heavy (T__L: Tree) (k: A) (T__R: Tree) : Tree :=
+| T__L, k, T__R with not_right_heavyb (weight T__L) (weight T__R) => {
+  | true => Node T__L k T__R
+  | false with T__R => {
+    | Leaf => Leaf (* absurde *)
+    | Node c k' r with join_maybe_right_heavy T__L k c  => {
+      | T' with T' => {
+        | Leaf => Leaf (* absurde *)
+        | Node l1 k1 r1 with not_left_heavyb (weight T') (weight r) => {
+          | true => Node T' k' r
+          | false with like_weightsb (weight r1) (weight r),
+              like_weightsb (weight l1) (weight r1 + weight r) => {
+            | true, true => rotate_right T' k' r
+            | _, _ => rotate_right (rotate_left l1 k1 r1) k' r
+            }
+          }
+        }
+      }
+    }
+  }.
+
 Ltac elim_join_left :=
   match goal with
   | |- context[join_maybe_left_heavy ?a ?b ?c] =>
@@ -246,6 +268,19 @@ Ltac elim_join_left :=
         <- ?like_weights_equiv, ?like_weightsb_false_iff in *;
       match goal with
       | H : _ = join_maybe_left_heavy _ _ _ |- _ => rewrite <- H; clear H
+      end;
+      eauto
+  end.
+
+Ltac elim_join_right :=
+  match goal with
+  | |- context[join_maybe_right_heavy ?a ?b ?c] =>
+      funelim (join_maybe_right_heavy a b c);
+      rewrite <- ?not_left_heavy_equiv, <- ?not_left_heavy_equiv_false,
+        <- ?not_right_heavy_equiv, <- ?not_right_heavy_equiv_false,
+        <- ?like_weights_equiv, ?like_weightsb_false_iff in *;
+      match goal with
+      | H : _ = join_maybe_right_heavy _ _ _ |- _ => rewrite <- H; clear H
       end;
       eauto
   end.
@@ -309,12 +344,19 @@ Qed.
  *)
 
 Ltac lia_autosolve :=
-  unfold like_weights, not_right_heavy, not_left_heavy, alpha in *; simp weight in *; try lia.
+  match goal with
+  | H: elements _ = elements _ |- _ => apply equal_elts_equal_weight in H
+  | |- _ => idtac
+  end;
+  unfold like_weights, not_right_heavy, not_left_heavy, alpha in *; simp weight in *;
+  try lia.
+
+#[export] Hint Rewrite app_assoc: app.
 
 Lemma join_maybe_left_heavyWB : forall T__L k T__R,
     WB T__L -> WB T__R -> not_right_heavy (weight T__L) (weight T__R) ->
     WB (join_maybe_left_heavy T__L k T__R) /\
-      weight (join_maybe_left_heavy T__L k T__R) = weight T__L + weight T__R.
+      elements (join_maybe_left_heavy T__L k T__R) = elements (Node T__L k T__R).
 Proof.
   intros. elim_join_left; split.
   - constructor; auto. unfold like_weights. intuition.
@@ -324,27 +366,30 @@ Proof.
   - constructor.
   - inversion H. rewrite Heq in *. intuition. exfalso.
     assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve. remember (weight_ge_one c).
-    remember (weight_ge_one T__R). lia_autosolve.
-  - rewrite Heq0 in *. inversion H. subst. intuition. constructor; auto; try lia_autosolve.
-    apply H3. lia_autosolve.
+    remember (weight_ge_one T__R). intuition. lia_autosolve.
+  - rewrite Heq0 in *. inversion H. subst.
+    assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
+    intuition. constructor; auto; lia_autosolve.
   - inversion H. subst. assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
-    intuition. rewrite Heq0 in *. lia_autosolve.
+    intuition. rewrite Heq0 in *. simp elements in *. aac_rewrite H8.
+    aac_reflexivity.
   - simp rotate_left. rewrite Heq2 in *. inversion H. subst.
     assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve. intuition. inversion H4.
     subst. constructor; auto. constructor; auto.
   - simp rotate_left. intuition. rewrite Heq2 in *. inversion H; subst.
     assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
-    intuition. lia_autosolve.
+    intuition. simp elements in *. aac_rewrite H8. aac_reflexivity.
   - inversion H. subst. assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
     destruct l1; simp rotate_right; simp rotate_left; auto using WB.
-    simp weight in *. specialize (Hind H6 H0 H2). rewrite Heq2 in *.
-    destruct Hind. inversion_clear H3. inversion_clear H8.
+    simp weight in *. specialize (Hind H6 H0 H2). destruct Hind. rewrite Heq2 in *.
+    inversion_clear H3. inversion_clear H8.
     repeat constructor; auto; lia_autosolve.
   - rewrite Heq2 in *. inversion H. subst.
     assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
     destruct l1.
-    + intuition lia_autosolve.
-    + simp rotate_right. simp rotate_left. intuition lia_autosolve.
+    + intuition. lia_autosolve. lia_autosolve.
+    + simp rotate_right. simp rotate_left. simp elements in *.
+      intuition aac_rewrite H9; aac_reflexivity.
   - inversion H. subst. assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
     destruct l1; simp rotate_right; simp rotate_left; auto using WB.
     simp weight in *. specialize (Hind H6 H0 H2). rewrite Heq1 in *.
@@ -354,11 +399,59 @@ Proof.
     assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
     destruct l1.
     + intuition lia_autosolve. inversion H8. subst. lia_autosolve.
-    + simp rotate_right. simp rotate_left. intuition lia_autosolve.
+    + simp rotate_right. simp rotate_left. simp elements in *.
+      intuition aac_rewrite H9; aac_reflexivity.
+Qed.
+
+Lemma join_maybe_right_heavyWB : forall T__L k T__R,
+    WB T__L -> WB T__R -> not_left_heavy (weight T__L) (weight T__R) ->
+    WB (join_maybe_right_heavy T__L k T__R) /\
+      elements (join_maybe_right_heavy T__L k T__R) = elements (Node T__L k T__R).
+Proof.
+  intros. elim_join_right; split.
+  - constructor; auto. unfold like_weights. intuition.
+  - auto.
+  - constructor.
+  - apply left_heavy_not_leaf in Heq. congruence.
+  - constructor.
+  - inversion H0. subst. rewrite Heq in *. intuition. exfalso.
+    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve. remember (weight_ge_one c).
+    remember (weight_ge_one T__L). intuition. lia_autosolve.
+  - rewrite Heq0 in *. inversion H0. subst.
+    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
+    intuition. constructor; auto; lia_autosolve.
+  - inversion H0. subst. assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
+    intuition. rewrite Heq0 in *. simp elements in *. aac_rewrite H8. aac_reflexivity.
+  - simp rotate_right. rewrite Heq2 in *. inversion H0. subst.
+    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve. intuition. inversion H4.
+    subst. constructor; auto. constructor; auto.
+  - simp rotate_right. intuition. rewrite Heq2 in *. inversion H0; subst.
+    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
+    intuition. simp elements in *. aac_rewrite H5. aac_reflexivity.
+  - inversion H0. subst. assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
+    destruct r1; simp rotate_left; simp rotate_right; auto using WB.
+    simp weight in *. specialize (Hind H H5 H2). destruct Hind. rewrite Heq2 in *.
+    inversion_clear H3. inversion_clear H9.
+    repeat constructor; auto; lia_autosolve.
+  - rewrite Heq2 in *. inversion H0. subst.
+    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
+    destruct r1.
+    + intuition lia_autosolve. inversion H8. lia_autosolve.
+    + simp rotate_left rotate_right. simp elements in *.
+      intuition aac_rewrite H9; aac_reflexivity.
+  - inversion H0. subst. assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
+    destruct r1; simp rotate_left; simp rotate_right; auto using WB.
+    simp weight in *. specialize (Hind H H5 H2). rewrite Heq1 in *.
+    destruct Hind. inversion_clear H3. inversion_clear H9.
+    repeat constructor; auto; lia_autosolve.
+  - rewrite Heq1 in *. inversion H0. subst.
+    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
+    destruct r1.
+    + intuition lia_autosolve. inversion H8. subst. lia_autosolve.
+    + simp rotate_left rotate_right. simp elements in *.
+      intuition aac_rewrite H9; aac_reflexivity.
 Qed.
 (*
-#[export] Hint Rewrite app_assoc: app.
-
 Lemma balance_maybe_left_elements : forall l v r, WB l ->
     elements (balance_maybe_left_heavy l v r) = elements l ++ [v] ++ elements r.
   intros. funelim (balance_maybe_left_heavy l v r); rewrite <- Heqcall; auto.
