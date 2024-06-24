@@ -201,7 +201,7 @@ Proof.
   - apply left_heavy_not_leaf in Heq. congruence.
   - constructor.
   - inversion H. rewrite Heq in *. intuition. exfalso.
-    assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve. remember (weight_ge_one c).
+    assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
     remember (weight_ge_one T__R). intuition. lia_autosolve.
   - rewrite Heq0 in *. inversion H. subst.
     assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
@@ -223,7 +223,7 @@ Proof.
   - rewrite Heq2 in *. inversion H. subst.
     assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
     destruct l1.
-    + intuition. lia_autosolve. lia_autosolve.
+    + intuition; lia_autosolve.
     + simp rotate_right. simp rotate_left. simp elements in *.
       intuition aac_rewrite H9; aac_reflexivity.
   - inversion H. subst. assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
