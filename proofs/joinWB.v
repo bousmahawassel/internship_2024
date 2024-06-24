@@ -4,17 +4,18 @@ From AAC_tactics Require Import AAC.
 From AAC_tactics Require Import Instances.
 Import Lists.
 
-Equations weight (t: Tree) : nat :=
+Open Scope Z_scope.
+
+Equations weight (t: Tree) : Z :=
 | Leaf => 1
 | Node t1 _ t2 => weight t1 + weight t2.
 
-Lemma weight_ge_one : forall t, weight t >= 1. (* Un lemme simple dont j'ai besoin un peu plus tard *)
+Lemma weight_ge_one : forall t, 1 <= weight t. (* Un lemme simple dont j'ai besoin un peu plus tard *)
 Proof.
-  unfold ge. intro. funelim (weight t); auto. transitivity (1 + 1); auto.
-  transitivity (weight t1 + 1); auto using add_le_mono_r_proj_l2r, add_le_mono_l_proj_l2r.
+  intro. funelim (weight t); lia.
 Qed.
 
-Lemma weight_elements : forall t, weight t = length (elements t) + 1.
+Lemma weight_elements : forall t, weight t = Z.of_nat (length (elements t)) + 1.
 Proof.
   intro. induction t; auto. simp elements weight. rewrite IHt1, IHt2.
   repeat rewrite app_length. simpl. lia.
@@ -25,22 +26,22 @@ Proof.
 intros. repeat rewrite weight_elements. rewrite H. auto.
 Qed.
 
-Definition alpha := 29.
+Definition alpha := 292893218813452.
 
 Definition not_left_heavyb wl wr :=
-  alpha * wl <=? (100 - alpha) * wr.
+  alpha * wl <=? (1_000_000_000_000_000 - alpha) * wr.
 
 Definition not_left_heavy wl wr :=
-  alpha * wl <= (100 - alpha) * wr.
+  alpha * wl <= (1_000_000_000_000_000 - alpha) * wr.
 
 Lemma not_left_heavy_equiv : forall wl wr, not_left_heavy wl wr <-> not_left_heavyb wl wr = true.
 Proof.
-  intros. unfold not_left_heavy, not_left_heavyb. rewrite Nat.leb_le. auto.
+  intros. unfold not_left_heavy, not_left_heavyb. rewrite Z.leb_le. auto.
 Qed.
 
 Lemma not_left_heavy_equiv_false : forall wl wr, ~not_left_heavy wl wr <-> not_left_heavyb wl wr = false.
 Proof.
-  intros. unfold not_left_heavy, not_left_heavyb. rewrite Nat.leb_nle. auto.
+  intros. unfold not_left_heavy, not_left_heavyb. rewrite Z.leb_nle. auto.
 Qed.
 
 Definition not_right_heavy wl wr :=
@@ -204,7 +205,7 @@ Proof.
     assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
     remember (weight_ge_one T__R). intuition. lia_autosolve.
   - rewrite Heq0 in *. inversion H. subst.
-    assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
+    assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve. remember (weight_ge_one T__R).
     intuition. constructor; auto; lia_autosolve.
   - inversion H. subst. assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
     intuition. rewrite Heq0 in *. simp elements in *. aac_rewrite H8.
@@ -254,7 +255,7 @@ Proof.
     assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve. remember (weight_ge_one c).
     remember (weight_ge_one T__L). intuition. lia_autosolve.
   - rewrite Heq0 in *. inversion H0. subst.
-    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
+    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve. remember (weight_ge_one T__L).
     intuition. constructor; auto; lia_autosolve.
   - inversion H0. subst. assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
     intuition. rewrite Heq0 in *. simp elements in *. aac_rewrite H8. aac_reflexivity.
@@ -293,5 +294,5 @@ Proof.
   intros. unfold join. remember (not_left_heavyb (weight T__L) (weight T__R)) as b; destruct b.
   - apply join_maybe_right_heavyWB; auto. rewrite not_left_heavy_equiv. auto.
   - apply join_maybe_left_heavyWB; auto. apply eq_sym in Heqb. rewrite  <- not_left_heavy_equiv_false in Heqb.
-    unfold not_right_heavy, not_left_heavy, alpha in *. lia.
+    unfold not_right_heavy, not_left_heavy, alpha in *. remember (weight_ge_one T__R). lia.
 Qed.
