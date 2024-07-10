@@ -2,4 +2,5 @@
 proofs/definitions.v
 proofs/utils.v
 proofs/trees.v
+proofs/log.v
 proofs/joinWB.v
