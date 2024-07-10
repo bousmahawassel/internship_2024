@@ -902,18 +902,6 @@ Proof.
     + rewrite <- Pos.add_succ_r. rewrite Hrec. aac_reflexivity.
 Qed.
 
-Instance pos_le_trans : Transitive Pos.le := Pos.le_trans.
-Instance pos_le_refl : Reflexive Pos.le := Pos.le_refl.
-
-Instance mul_pos_le_mono : Proper (Pos.le ==> Pos.le ==> Pos.le) Pos.mul.
-unfold Proper. unfold "==>". intros. apply Pos.mul_le_mono; auto.
-Qed.
-
-
-Instance add_pos_le_mono : Proper (Pos.le ==> Pos.le ==> Pos.le) Pos.add.
-unfold Proper. unfold "==>". intros. apply Pos.add_le_mono; auto.
-Qed.
-
 Lemma split_cost_split : forall T k a b c,
     WB T -> split T k = (a, b, c) -> as_log (split_cost T k) <= 3 * (rank a + rank c).
 Proof.
