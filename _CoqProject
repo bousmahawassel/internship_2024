@@ -5,3 +5,4 @@ proofs/trees.v
 proofs/log.v
 proofs/joinWB.v
 proofs/WBcomplexity.v
+proofs/opti_joinWB.v
