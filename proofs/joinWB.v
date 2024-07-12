@@ -12,11 +12,6 @@ Equations weight (t: Tree) : positive :=
 | Leaf => 1
 | Node t1 _ t2 => weight t1 + weight t2.
 
-Lemma weight_ge_one : forall t, 1 <= weight t. (* Un lemme simple dont j'ai besoin un peu plus tard *)
-Proof.
-  intro. funelim (weight t); lia.
-Qed.
-
 Lemma weight_elements : forall t, weight t = Pos.of_nat (length (elements t) + 1).
 Proof.
   intro. induction t; auto. simp elements weight. rewrite IHt1, IHt2.
@@ -67,7 +62,7 @@ Qed.
 
 Lemma left_heavy_Leaf_false : forall r, not_left_heavy (weight Leaf) (weight r).
 Proof.
-  intro. unfold not_left_heavy. simp weight. remember (weight_ge_one r). unfold alpha, base. lia.
+  intro. unfold not_left_heavy. simp weight. unfold alpha, base. lia.
 Qed.
 
 Lemma left_heavy_not_leaf : forall l r, ~ (not_left_heavy (weight l) (weight r)) -> l <> Leaf.
@@ -206,11 +201,10 @@ Proof.
   - apply left_heavy_not_leaf in Heq. congruence.
   - constructor.
   - inversion H. rewrite Heq in *. intuition. exfalso.
-    assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
-    remember (weight_ge_one T__R). intuition. lia_autosolve.
+    assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve. intuition. lia_autosolve.
   - rewrite Heq0 in *. inversion H. subst.
-    assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve. remember (weight_ge_one T__R).
-    intuition. constructor; auto; lia_autosolve.
+    assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve. intuition.
+    constructor; auto; lia_autosolve.
   - inversion H. subst. assert (not_right_heavy (weight c) (weight T__R)) by lia_autosolve.
     intuition. rewrite Heq0 in *. simp elements in *. aac_rewrite H8.
     aac_reflexivity.
@@ -256,11 +250,10 @@ Proof.
   - apply left_heavy_not_leaf in Heq. congruence.
   - constructor.
   - inversion H0. subst. rewrite Heq in *. intuition. exfalso.
-    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve. remember (weight_ge_one c).
-    remember (weight_ge_one T__L). intuition. lia_autosolve.
+    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve. intuition. lia_autosolve.
   - rewrite Heq0 in *. inversion H0. subst.
-    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve. remember (weight_ge_one T__L).
-    intuition. constructor; auto; lia_autosolve.
+    assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve. intuition.
+    constructor; auto; lia_autosolve.
   - inversion H0. subst. assert (not_left_heavy (weight T__L) (weight c)) by lia_autosolve.
     intuition. rewrite Heq0 in *. simp elements in *. aac_rewrite H8. aac_reflexivity.
   - simp rotate_right. rewrite Heq2 in *. inversion H0. subst.
@@ -293,12 +286,13 @@ Proof.
       intuition aac_rewrite H9; aac_reflexivity.
 Qed.
 
-Theorem join_correct : forall T__L k T__R, WB T__L -> WB T__R -> WB (join T__L k T__R) /\ elements (join T__L k T__R) =  elements (Node T__L k T__R).
+Theorem join_correct : forall T__L k T__R,
+    WB T__L -> WB T__R -> WB (join T__L k T__R) /\ elements (join T__L k T__R) =  elements (Node T__L k T__R).
 Proof.
   intros. unfold join. remember (not_left_heavyb (weight T__L) (weight T__R)) as b; destruct b.
   - apply join_maybe_right_heavyWB; auto. rewrite not_left_heavy_equiv. auto.
-  - apply join_maybe_left_heavyWB; auto. apply eq_sym in Heqb. rewrite  <- not_left_heavy_equiv_false in Heqb.
-    unfold not_right_heavy, not_left_heavy, alpha, base in *. remember (weight_ge_one T__R). lia.
+  - apply join_maybe_left_heavyWB; auto. apply eq_sym in Heqb.
+    rewrite  <- not_left_heavy_equiv_false in Heqb. lia_autosolve.
 Qed.
 
 Lemma joinWB : forall T__L k T__R, WB T__L -> WB T__R -> WB (join T__L k T__R).
@@ -324,8 +318,7 @@ Proof.
   intros. unfold abr. rewrite join_elts; auto. apply abr_node. tauto.
 Qed.
 
-Close Scope Z_scope.
-Close Scope positive_scope.
+Open Scope nat_scope.
 
 Equations split (T: Tree) (k: A) : Tree * bool * Tree :=
 | Leaf, _ => (Leaf, false, Leaf)
@@ -371,6 +364,8 @@ Proof.
     + repeat rewrite occursb_correct. intuition auto. eapply abr_gt_occurs; eauto.
       apply Nat.compare_gt_iff. auto.
 Qed.
+
+Open Scope list_scope.
 
 Lemma split_elts_occursb : forall T k a b c,
     WB T -> abr T -> split T k = (a, b, c) ->
@@ -538,8 +533,7 @@ Proof.
     simp elements in *. rewrite Hind. inversion_clear H1. rewrite join_elts; auto.
     + simp elements. aac_reflexivity.
     + apply splitLastWB in Heq; auto.
-Qed.
-  
+Qed.  
 
 Equations join2 (L: Tree) (R: Tree) : Tree :=
 | Leaf, R => R
@@ -624,7 +618,6 @@ Proof.
   - intuition. apply join2_occurs; auto. eapply split_occurs_recipr in Heqp; eauto. tauto.
   - intro. apply join2_occurs in H1; try tauto. eapply split_occurs in Heqp as Hocc; eauto.
     split; auto. intro. subst. apply split_smallers_greaters in Heqp; auto.
-    Search (all_smallers).
     unfold all_smallers, all_greaters, occurs in *. do 2 rewrite Forall_forall in *. intuition.
     + apply H2 in H6. lia.
     + apply H3 in H6. lia.
@@ -702,661 +695,27 @@ Proof.
       intuition auto.
 Qed.
 
-Equations join_maybe_left_heavy_cost (T__L: Tree) (k: A) (T__R: Tree) : nat :=
-| T__L, k, T__R with not_left_heavyb (weight T__L) (weight T__R) => {
-  | true => 0
-  | false with T__L => {
-    | Leaf => 0 (* absurde si WB *)
-    | Node l k' c => S (join_maybe_left_heavy_cost c k T__R)
-    }
-  }.
-
-Equations join_maybe_right_heavy_cost (T__L: Tree) (k: A) (T__R: Tree) : nat :=
-| T__L, k, T__R with not_right_heavyb (weight T__L) (weight T__R) => {
-  | true => 0
-  | false with T__R => {
-    | Leaf => 0 (* absurde si WB *)
-    | Node c k' r => S (join_maybe_right_heavy_cost T__L k c)
-    }
-  }.
-
-Definition join_cost T__L k T__R :=
-  if not_left_heavyb (weight T__L) (weight T__R)
-  then join_maybe_right_heavy_cost T__L k T__R
-  else join_maybe_left_heavy_cost T__L k T__R.
-
-Equations split_cost (T: Tree) (k: A) : nat :=
-| Leaf, _ => 0
-| Node l k' r, k with (k ?= k')%nat => {
-  | Eq => 0
-  | Lt with split l k => {
-    | (_, _, lr) => split_cost l k + join_cost lr k' r
-    }
-  | Gt with split r k => {
-    | (rl, _, _) => split_cost r k + join_cost l k' rl
-    }
-  }.
-
-Equations height (T: Tree) : nat :=
-| Leaf => 0
-| Node l _ r => S (max (height l) (height r)).
-
-Open Scope positive_scope.
-
-Open Scope log_scope.
-
-Definition rank (t: Tree) := log (weight t).
-
-Lemma rank_joinWB : forall A k B, WB A -> WB B -> rank (join A k B) = rank (Node A k B).
-Proof.
-  intros. unfold rank. repeat rewrite weight_elements. rewrite join_elts; auto.
-Qed.
-
-Lemma empty_rule : rank Leaf = as_log 0.
-  auto.
-Qed.
-
-Lemma monotonicity : forall A k B, WB A -> WB B -> max_log (rank A) (rank B) <= rank (join A k B).
-Proof.
-  intros. rewrite rank_joinWB; auto. apply max_log_lub_iff_le. unfold rank, le_log. simp weight.
-  simpl. intuition lia.
-Qed.
-
-(* je réinterprète la règle de submodularity : les conditions 0 ≤ a - b sont transformées en
-b ≤ a, pour ne pas avoir de problèmes dans nat *)
-
-Lemma submodularity_decr : forall A e B A' B',
-    WB A' -> WB B' -> rank A' <= rank A -> rank B' <= rank B -> rank (join A' e B') <= rank (Node A e B).
-Proof.
-  unfold le_log. intros. rewrite rank_joinWB; auto. unfold rank in *. simp weight. simpl in *.
-  lia.
-Qed.
-
-Lemma submodularity_incr : forall A e B A' B' x,
-    WB A' -> WB B' -> rank A <= rank A' -> rank A' <= rank A + x ->
-    rank B <= rank B' -> rank B' <= rank B + x -> rank (join A' e B') <= x + rank (Node A e B).
-Proof.
-  unfold le_log. intros. rewrite rank_joinWB; auto. unfold rank in *. simp weight. simpl in *.
-  destruct x. simpl in *. lia.
-Qed.
-
-Lemma balancing_rule : forall l k r,
-    WB (Node l k r) -> 
-    max_log (rank l) (rank r) + log 1 <= rank (Node l k r) /\
-      rank (Node l k r) <= min_log (rank l) (rank r) + log 4.
-Proof.
-  intros. inversion H. subst. split.
-  - rewrite <- add_max_log_distr_r. apply max_log_lub_iff_le. unfold rank, le_log. simp weight.
-    simpl. lia_autosolve.
-  - rewrite <- add_min_log_distr_r. apply min_log_glb_iff_le. unfold rank, le_log. simp weight.
-    simpl. lia_autosolve.
-Qed.
-
-Lemma join_cost_rank_right_heavy : forall A k B,
-    WB A -> WB B -> rank A <= rank B ->
-    as_log (join_cost A k B) + 3 * rank A <= 3 * rank B.
-Proof.
-  unfold join_cost, rank, le_log. intros. simpl in H1.
-  assert (not_left_heavy (weight A) (weight B)) by lia_autosolve.
-  rewrite not_left_heavy_equiv in H2. rewrite H2.
-  clear H2. assert (weight A * weight A <= weight B * weight B)%positive by nia.
-  funelim (join_maybe_right_heavy_cost A k B); rewrite <- Heqcall; simp mul_log as_log in *; simpl;
-    try nia.
-  simp weight in *. inversion_clear H1. intuition.
-  destruct (le_pos_dicho (weight T__L) (weight c)).
-  - assert (weight T__L * weight T__L <= weight c * weight c)%positive by nia. intuition.
-    simpl in *. lia_autosolve. nia.
-  - clear H. simp join_maybe_right_heavy_cost.
-    assert (not_right_heavy (weight T__L) (weight c)) by lia_autosolve.
-    rewrite not_right_heavy_equiv in *. rewrite H. simpl. simp as_log. simpl.
-    rewrite <- not_right_heavy_equiv_false in *. lia_autosolve. nia.
-Qed.
-
-Lemma join_cost_rank_left_heavy : forall A k B,
-    WB A -> WB B -> rank B <= rank A ->
-    as_log (join_cost A k B) + 3 * rank B <= 3 * rank A.
-Proof.
-  unfold join_cost, rank, le_log. intros. simpl in H1.
-  assert (weight B * weight B <= weight A * weight A)%positive by nia.
-  destruct (not_left_heavyb (weight A) (weight B)).
-  {
-    assert (not_right_heavy (weight A) (weight B)) by lia_autosolve.
-    simp join_maybe_right_heavy_cost. apply not_right_heavy_equiv in H3. rewrite H3. simpl.
-    simp as_log mul_log. simpl. nia.
-  }
-  funelim (join_maybe_left_heavy_cost A k B); rewrite <- Heqcall; simp as_log mul_log in *; simpl;
-    try nia.
-  inversion_clear H0. simp weight in *. intuition.
-  destruct (le_pos_dicho (weight T__R) (weight c)).
-  - assert (weight T__R * weight T__R <= weight c * weight c)%positive by nia. intuition.
-    simpl in *. lia_autosolve. nia.
-  - clear H. simp join_maybe_left_heavy_cost.
-    assert (not_left_heavy (weight c) (weight T__R)) by lia_autosolve.
-    rewrite not_left_heavy_equiv in *. rewrite H. simpl. simp as_log. simpl.
-    rewrite <- not_left_heavy_equiv_false in *. lia_autosolve. nia.
-Qed.
-
-Lemma join_cost_rank : forall A k B,
-    WB A -> WB B ->
-    as_log (join_cost A k B) + 3 * min_log (rank A) (rank B) <= 3 * max_log (rank A) (rank B).
-Proof.
-  intros. destruct (le_log_dicho (rank A) (rank B)).
-  - rewrite min_log_l; auto. rewrite max_log_r; auto. apply join_cost_rank_right_heavy; auto.
-  - rewrite min_log_r; auto. rewrite max_log_l; auto. apply join_cost_rank_left_heavy; auto.
-Qed.
-
-Lemma height_rank : forall T, WB T -> as_log (height T) <= 3 * rank T.
-Proof.
-  intros. funelim (height T).
-  - unfold rank, le_log. simp as_log weight. simpl. lia.
-  - inversion_clear H1. intuition. unfold rank in *. simp mul_log weight as_log in *.
-    rewrite as_log_max. unfold add_log, le_log in *. simpl in *. rewrite <- Pos.mul_max_distr_l.
-    apply Pos.max_lub_iff. lia_autosolve. nia.
-Qed.
-
-Lemma rank_height : forall T, WB T -> rank T <= as_log (height T).
-Proof.
-  intros. funelim (height T).
-  - unfold rank, le_log. simp as_log mul_log weight. simpl. lia.
-  - inversion_clear H1. intuition. unfold rank in *. simp weight as_log. rewrite as_log_max.
-    unfold add_log, le_log in *. simpl in *. lia.
-Qed.
-
-Lemma split_rank : forall T k a b c, WB T -> split T k = (a, b, c) -> rank a <= rank T /\ rank c <= rank T.
-Proof.
-  intros T k a b c H. funelim (split T k).
-  - simp split. intros. inversion_clear H0. unfold rank, le_log. simp weight. simpl. lia.
-  - inversion_clear Heqcall. intros. inversion H0. subst. unfold rank, le_log. simp weight. simpl.
-    lia.
-  - inversion_clear Heqcall. rewrite Heq in Hind. intros. inversion H0. subst. inversion_clear H.
-    apply splitWB in Heq; auto. rewrite rank_joinWB; try tauto. unfold rank, le_log in *.
-    simp weight. simpl in *. specialize (Hind a b0 lr). intuition lia.
-  - inversion_clear Heqcall. rewrite Heq in Hind. intros. inversion H0. subst. inversion_clear H.
-    apply splitWB in Heq; auto. rewrite rank_joinWB; try tauto. unfold rank, le_log in *.
-    simp weight. simpl in *. specialize (Hind rl b0 c). intuition lia.
-Qed.
-
-Lemma join_weight : forall T__L k T__R, WB T__L -> WB T__R -> weight (join T__L k T__R) = weight (Node T__L k T__R).
-Proof.
-  intros. rewrite weight_elements. rewrite join_elts; auto. rewrite <- weight_elements.
-  auto.
-Qed.
-
-Lemma split_weight : forall T k a b c,
-    WB T -> split T k = (a, b, c) ->
-    ((if b then id else Pos.succ) (weight T) = (weight a + weight c))%positive.
-Proof.
-  intros T k. funelim (split T k).
-  - simp split. intros. inversion_clear H0. simp weight. simpl. auto.
-  - inversion_clear Heqcall. intros. inversion_clear H0. simp weight. auto.
-  - inversion_clear Heqcall. intros. inversion H0. subst. inversion_clear H.
-    apply Hind in Heq as Hrec; auto. clear Hind.  destruct b0.
-    + apply splitWB in Heq as HWB; auto. rewrite join_weight; intuition.
-      simp weight. simpl in *. rewrite Hrec. aac_reflexivity.
-    + apply splitWB in Heq as HWB; auto. rewrite join_weight; intuition. simp weight.
-      rewrite <- Pos.add_succ_l. rewrite Hrec. aac_reflexivity.
-  - inversion_clear Heqcall. intros. inversion H0. subst. inversion_clear H.
-    apply Hind in Heq as Hrec; auto. clear Hind. apply splitWB in Heq as HWB; auto.
-    rewrite join_weight; intuition. simp weight. destruct b0.
-    + simpl in *. rewrite Hrec. aac_reflexivity.
-    + rewrite <- Pos.add_succ_r. rewrite Hrec. aac_reflexivity.
-Qed.
-
-Lemma split_cost_split : forall T k a b c,
-    WB T -> split T k = (a, b, c) -> as_log (split_cost T k) <= 3 * (rank a + rank c).
-Proof.
-  intros T k. funelim (split_cost T k).
-  - simp split_cost as_log. unfold le_log, add_log. simpl. lia.
-  - rewrite <- Heqcall. simp as_log. unfold le_log, add_log. simpl. lia.
-  - inversion_clear Heqcall. simp split. rewrite Heq0. simpl. rewrite Heq. simpl. intros.
-    inversion H1. subst. clear H1. inversion_clear H0. specialize (H a b0 lr). intuition.
-    rewrite as_log_add. apply splitWB in Heq as HWB; intuition.
-    unfold le_log, rank, add_log in *. rewrite join_weight; auto. simp weight.
-    simpl in *. rewrite H. pose (join_cost_rank lr k' r). intuition. simp mul_log in *.
-    unfold le_log, add_log in *. simpl in *. repeat rewrite Pos.mul_1_l in *.
-    aac_normalise. repeat rewrite Pos.mul_assoc. repeat rewrite <- Pos.mul_le_mono_r.
-    destruct (le_pos_dicho (weight lr) (weight r)).
-    + rewrite Pos.min_l in *; auto. rewrite Pos.max_r in *; auto. aac_rewrite H6. lia.
-    + assert (join_cost lr k' r = 0)%nat.
-      * unfold join_cost. apply split_weight in Heq as Hw; auto.
-        assert (weight lr <= weight l)%positive by (destruct b0; simpl in *; lia_autosolve).
-        assert (not_left_heavy (weight lr) (weight r)) by lia_autosolve.
-        rewrite not_left_heavy_equiv in H8. rewrite H8. simp join_maybe_right_heavy_cost.
-        assert (not_right_heavy (weight lr) (weight r)) by lia_autosolve.
-        rewrite not_right_heavy_equiv in H9. rewrite H9. simpl. auto.
-      * rewrite H7. simp as_log. simpl. rewrite Pos.mul_1_l. lia.
-  - inversion_clear Heqcall. simp split. rewrite Heq0. simpl. rewrite Heq. simpl. intros.
-    inversion H1. subst. clear H1. inversion_clear H0. specialize (H rl b0 c). intuition.
-    rewrite as_log_add. apply splitWB in Heq as HWB; intuition.
-    unfold le_log, rank, add_log in *. simp weight in *. rewrite join_weight; auto. simp weight.
-    simpl in *. rewrite H. pose (join_cost_rank l k' rl). intuition. simp mul_log in *.
-    unfold le_log, add_log in *. simpl in *. repeat rewrite Pos.mul_1_l in *.
-    aac_normalise. repeat rewrite Pos.mul_assoc. repeat rewrite <- Pos.mul_le_mono_r.
-    destruct (le_pos_dicho (weight l) (weight rl)).
-    + assert (join_cost l k' rl = 0)%nat.
-      * unfold join_cost. apply split_weight in Heq as Hw; auto.
-        assert (weight rl <= weight r)%positive by (destruct b0; simpl in *; lia_autosolve).
-        assert (not_left_heavy (weight l) (weight rl)) by lia_autosolve.
-        rewrite not_left_heavy_equiv in H8. rewrite H8. simp join_maybe_right_heavy_cost.
-        assert (not_right_heavy (weight l) (weight rl)) by lia_autosolve.
-        rewrite not_right_heavy_equiv in H9. rewrite H9. simpl. auto.
-      * rewrite H7. simp as_log. simpl. rewrite Pos.mul_1_l. lia.
-    + rewrite Pos.min_r in *; auto. rewrite Pos.max_l in *; auto. aac_rewrite H6. lia.
-Qed.
-
-Lemma split_cost_rank : forall T k, WB T -> as_log (split_cost T k) <= 6 * rank T.
-Proof.
-  intros. remember (split T k). destruct p as [[a b] c]. apply eq_sym in Heqp.
-  apply split_cost_split in Heqp as Hcost; auto. apply split_rank in Heqp; auto.
-  simp mul_log in *. unfold le_log, add_log in *. simpl in *. rewrite Pos.mul_1_l in *.
-  rewrite Hcost. intuition. rewrite H0. rewrite H1. aac_reflexivity.
-Qed.
-
-Definition le_pos_sumbool : forall a b, ({a <= b} + {b <= a})%positive.
-  intros. remember (a ?= b). destruct c.
-  - apply eq_sym, Pos.compare_eq in Heqc. left. lia.
-  - apply eq_sym in Heqc. rewrite Pos.compare_lt_iff in Heqc. left. lia.
-  - apply eq_sym in Heqc. rewrite Pos.compare_gt_iff in Heqc. right. lia.
-Qed.
-
-Equations size (T: Tree) : nat :=
-| Leaf => 0
-| Node l _ r => S (size l + size r).
-
-Lemma size_weight : forall T, Pos.to_nat (weight T) = S (size T).
-Proof.
-  intro. funelim (size T); simp weight; auto.
-  rewrite Pos2Nat.inj_add. rewrite H. rewrite H0. lia.
-Qed.
-
-Lemma join_size : forall A k B, WB A -> WB B -> size (join A k B) = size (Node A k B).
-Proof.
-  intros. simp size. apply Nat.succ_inj. rewrite <- size_weight. rewrite join_weight; auto.
-  simp weight. rewrite Pos2Nat.inj_add. repeat rewrite size_weight. lia.
-Qed.
-
-Lemma split_size : forall T k a b c,
-    WB T -> split T k = (a, b, c) -> size T = (if b then S else id) (size a + size c)%nat.
-Proof.
-  intros T k. funelim (split T k).
-  - simp split. intros. inversion H0. simp size. auto.
-  - inversion_clear Heqcall. intros. inversion H0. simp size. lia.
-  - inversion_clear Heqcall. intros. inversion H0. inversion_clear H.
-    apply Hind in Heq as Hrec; auto. inversion H0. subst. apply splitWB in Heq as HWB; intuition.
-    rewrite join_size; auto. simp size. rewrite Hrec. destruct b0; simpl; lia.
-  - inversion_clear Heqcall. intros. inversion H0. inversion_clear H.
-    apply Hind in Heq as Hrec; auto. inversion H0. subst. apply splitWB in Heq as HWB; intuition.
-    rewrite join_size; auto. simp size. rewrite Hrec. destruct b0; simpl; lia.
-Qed.
-
-Definition sum_size T1 T2 := (size T1 + size T2)%nat.
-
-Definition inspect {A} (a : A) : {b | a = b} :=
-  exist _ a eq_refl.
-
-Notation "x 'eqn:' p" := (exist _ x p) (only parsing, at level 20).
-
-Equations? union_switch (T1 T2: Tree) (H: WB T1) (H0: WB T2) : Tree by wf (sum_size T1 T2) lt :=
-| Leaf, T2, _, _ => T2
-| T1, Leaf, _, _ => T1
-| T1, Node L2 k R2, H, H0 with inspect (split T1 k) => {
-  | (L1, b, R1) eqn: Heq with le_pos_sumbool (weight L2) (weight L1),
-      le_pos_sumbool (weight R2) (weight R1) => {
-    | left _, left _ => join (union_switch L1 L2 _ _) k (union_switch R1 R2 _ _)
-    | left _, right _ => join (union_switch L1 L2 _ _) k (union_switch R2 R1 _ _)
-    | right _, left _ => join (union_switch L2 L1 _ _) k (union_switch R1 R2 _ _)
-    | right _, right _ => join (union_switch L2 L1 _ _) k (union_switch R2 R1  _ _)
-    }
-  }.
-Proof.
-  all: inversion_clear H0; apply splitWB in Heq as HWB; intuition.
-  all: apply split_size in Heq as Hs; intuition; unfold sum_size; simp size in *.
-  all: destruct b; simpl in *; lia.
-Qed.
-
-Lemma union_switch_WB : forall T1 T2 H H0, WB (union_switch T1 T2 H H0).
-Proof.
-  intros.
-  funelim (union_switch T1 T2 H H0); try solve [simp union_switch]; try inversion_clear Heqcall;
-    apply joinWB; auto.
-Qed.
-
-Equations? union_switch_cost (T1 T2: Tree) (H: WB T1) (H0: WB T2) : nat by wf (sum_size T1 T2) lt :=
-| Leaf, T2, _, _ => 0
-| T1, Leaf, _, _ => 0
-| T1, Node L2 k R2, H, H0 with inspect (split T1 k) => {
-  | (L1, _, R1) eqn: Heq with le_pos_sumbool (weight L2) (weight L1),
-      le_pos_sumbool (weight R2) (weight R1) => {
-    | left _, left _ => split_cost T1 k
-                       + join_cost (union_switch L1 L2 _ _) k (union_switch R1 R2 _ _)
-                       + union_switch_cost L1 L2 _ _ + union_switch_cost R1 R2 _ _
-    | left _, right _ => split_cost T1 k
-                        + join_cost (union_switch L1 L2 _ _) k (union_switch R2 R1 _ _)
-                        + union_switch_cost L1 L2 _ _ + union_switch_cost R2 R1 _ _
-    | right _, left _ => split_cost T1 k
-                        + join_cost (union_switch L2 L1 _ _) k (union_switch R1 R2 _ _)
-                        + union_switch_cost L2 L1 _ _ + union_switch_cost R2 R1 _ _
-    | right _, right _ => split_cost T1 k
-                         + join_cost (union_switch L2 L1 _ _) k (union_switch R2 R1 _ _)
-                         + union_switch_cost L2 L1 _ _ + union_switch_cost R2 R1 _ _
-    }
-  }.
-Proof.
-  all: inversion_clear H0; apply splitWB in Heq as HWB; intuition.
-  all: apply split_size in Heq as Hs; intuition; unfold sum_size; simp size in *.
-  all: destruct b; simpl in *; lia.
-Qed.
-
-Equations? union_switch_bound (T1 T2: Tree) (H: WB T1) (H0: WB T2) : logtype
-  by wf (rank T1 + rank T2) lt_log :=
-| Leaf, T2, _, _ => 0
-| T1, Leaf, _, _ => 0
-.
-
-Lemma union_switch_weight_le : forall T1 T2 H H0,
-    (Pos.succ (weight (union_switch T1 T2 H H0)) <= weight T1 + weight T2)%positive.
-Proof.
-  intros.
-  funelim (union_switch T1 T2 H H0);
-    try solve [simp union_switch weight; lia];
-    inversion_clear Heqcall.
-  all: inversion_clear H0; apply splitWB in Heq as HWB; intuition.
-  all: rewrite join_weight; auto using union_switch_WB; simp weight.
-  all: apply split_weight in Heq as Hw; auto; destruct b; simp weight in *; simpl in *; lia.
-Qed.
-
-Lemma union_switch_weight_ge : forall T1 T2 H H0,
-    (weight T1 <= weight (union_switch T1 T2 H H0) /\
-       weight T2 <= weight (union_switch T1 T2 H H0))%positive.
-Proof.
-  intros. funelim (union_switch T1 T2 H H0);
-    try solve [simp union_switch weight; lia];
-    try inversion_clear Heqcall; simp weight.
-  all: inversion_clear H0; apply splitWB in Heq as HWB; intuition.
-  all: rewrite join_weight; auto using union_switch_WB; simp weight.
-  all: apply split_weight in Heq as Hw; auto; simp weight in *; destruct b; simpl in *; try lia.
-Qed.
-
-Lemma weight_size_le : forall T1 T2, (weight T1 <= weight T2)%positive -> (size T1 <= size T2)%nat.
-Proof.
-  intros. apply le_S_n. repeat rewrite <- size_weight. lia.
-Qed.
-
-Lemma union_switch_cost_rank : forall T1 T2 H H0,
-    (weight T2 <= weight T1)%positive -> 
-
-Lemma union_cost_rank : forall T1 T2,
-    WB T1 -> WB T2 ->
-    as_log (union_cost T1 T2) +
-      min (size T1) (size T2) * log (Pos.min (weight T1) (weight T2)) <=
-      min (size T1) (size T2) * log (Pos.max (weight T1) (weight T2)).
-Proof.
-  intros.
-  funelim (union_cost T1 T2); rewrite <- ?Heqcall.
-  - simp size as_log weight. unfold le_log, add_log. simpl. simp mul_log. simpl. lia.
-  - simp union_cost as_log size weight. unfold le_log, add_log. simpl. simp mul_log. simpl. lia.
-  - inversion_clear H2. apply splitWB in Heq as HWB; intuition. clear Heqcall.
-    repeat rewrite as_log_add.
-    assert (as_log (join_cost (union L1 L2) k (union R1 R2)) <= 9 * rank (Node t a t0)).
-    {
-      clear H H0. pose (join_cost_rank (union L1 L2) k (union R1 R2)). simp mul_log in *.
-      unfold le_log, add_log in *. simpl in *. repeat rewrite Pos.mul_1_l in *.
-      assert (WB (union L1 L2)) by auto using unionWB.
-      assert (WB (union R1 R2)) by auto using unionWB. intuition.
-      destruct (le_pos_dicho (weight (Node L2 k R2)) (weight (Node t a t0))).
-      - apply split_weight in Heq as Hw; auto. simp weight in *.
-        destruct (le_pos_dicho (weight (union L1 L2)) (weight (union R1 R2))).
-        + rewrite Pos.min_l in *; auto. rewrite Pos.max_r in *; auto.
-          rewrite Pos.mul_le_mono_r. rewrite H8. pose (union_weight_le R1 R2). intuition.
-          assert (weight (union R1 R2) <= weight R1 + weight R2)%positive by lia.
-          assert (weight R1 <= weight t + weight t0)%positive by (destruct b; simpl in *; lia).
-          assert (weight R1 + weight R2 <= 2 * (weight t + weight t0))%positive by lia.
-          rewrite H10, H13.
-          assert (2 <= weight t + weight t0)%positive by lia.
-          rewrite H14. repeat rewrite <- Pos.mul_assoc. repeat apply Pos.mul_le_mono_l.
-          replace (weight t + weight t0)%positive with ((weight t + weight t0) * 1)%positive at 1
-            by lia. apply Pos.mul_le_mono_l. lia.
-        + rewrite Pos.min_r in *; auto. rewrite Pos.max_l in *; auto.
-          rewrite Pos.mul_le_mono_r. rewrite H8. pose (union_weight_le L1 L2). intuition.
-          assert (weight (union L1 L2) <= weight L1 + weight L2)%positive by lia.
-          assert (weight L1 <= weight t + weight t0)%positive by (destruct b; simpl in *; lia).
-          assert (weight L1 + weight L2 <= 2 * (weight t + weight t0))%positive by lia.
-          rewrite H10, H13.
-          assert (2 <= weight t + weight t0)%positive by lia.
-          rewrite H14. repeat rewrite <- Pos.mul_assoc. repeat apply Pos.mul_le_mono_l.
-          replace (weight t + weight t0)%positive with ((weight t + weight t0) * 1)%positive at 1
-            by lia. apply Pos.mul_le_mono_l. lia.
-      - apply split_weight in Heq as Hw; auto. simp weight in *.
-        destruct (le_pos_dicho (weight (union L1 L2)) (weight (union R1 R2))).
-        + rewrite Pos.min_l, Pos.max_r in *; auto. rewrite Pos.mul_le_mono_r. rewrite H8.
-          pose (union_weight_le R1 R2). intuition. pose (union_weight_ge L1 L2). intuition.
-          assert (1 < weight R1 -> weight R1 + 3 * weight L2 <= weight R1 * 3 * weight L2)%positive
-            by nia. destruct R1.
-          { simp union.
-            assert (weight R2 <= 3 * weight L2)%positive by lia_autosolve. rewrite H14, H13.
-            assert (2 <= weight t + weight t0)%positive by lia. revert H15.
-            generalize (weight (union L1 L2)), (weight t + weight t0)%positive.
-            clear dependent t a t0 L2 k L1 b R2 H6. intros.
-            assert (3 * 3 * 3 <= 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2)%positive by lia. aac_rewrite H.
-            rewrite H15. lia.
-          }
-          simp weight in *. assert (1 < weight R1_1 + weight R1_2)%positive by lia. intuition.
-          assert (weight (union (Node R1_1 a0 R1_2) R2) <=
-                    weight R1_1 + weight R1_2 + 3 * weight L2)%positive
-            by lia_autosolve.
-          rewrite H12, H15, H13.
-          assert (weight R1_1 + weight R1_2 <= weight t + weight t0)%positive by
-            (destruct b; simpl in *; lia).rewrite H16.
-          assert (3 * 3 * 3 <= 2 * 2 * 2 * 2 * 2 * 2)%positive by lia.
-          aac_rewrite H17. assert (2 <= weight t + weight t0)%positive by lia.
-          rewrite H18. lia.
-        + rewrite Pos.min_r, Pos.max_l in *; auto. rewrite Pos.mul_le_mono_r. rewrite H8.
-          pose (union_weight_le L1 L2). intuition. pose (union_weight_ge R1 R2). intuition.
-          assert (1 < weight L1 -> weight L1 + 3 * weight R2 <= weight L1 * 3 * weight R2)%positive
-            by nia. destruct L1.
-          { simp union.
-            assert (weight L2 <= 3 * weight R2)%positive by lia_autosolve. rewrite H14, H13.
-            assert (2 <= weight t + weight t0)%positive by lia. revert H15.
-            generalize (weight (union R1 R2)), (weight t + weight t0)%positive.
-            clear dependent t a t0 L2 k R1 b R2 H2. intros.
-            assert (3 * 3 * 3 <= 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2)%positive by lia. aac_rewrite H.
-            rewrite H15. lia.
-          }
-          simp weight in *. assert (1 < weight L1_1 + weight L1_2)%positive by lia. intuition.
-          assert (weight (union (Node L1_1 a0 L1_2) L2) <=
-                    weight L1_1 + weight L1_2 + 3 * weight R2)%positive
-            by lia_autosolve.
-          rewrite H12, H15, H13.
-          assert (weight L1_1 + weight L1_2 <= weight t + weight t0)%positive by
-            (destruct b; simpl in *; lia). rewrite H16.
-          assert (3 * 3 * 3 <= 2 * 2 * 2 * 2 * 2 * 2)%positive by lia.
-          aac_rewrite H17. assert (2 <= weight t + weight t0)%positive by lia.
-          rewrite H18. lia.
-    }
-    pose (split_cost_rank (Node t a t0) k). pose (unionWB L1 L2).
-    pose (unionWB R1 R2). intuition. simp size weight. simpl. simp mul_log in *.
-    unfold le_log, add_log in *. simpl in *. repeat rewrite Pos.mul_1_l in *.
-    rewrite H7, H8. simp weight. 
-    destruct (le_pos_dicho (weight L1) (weight L2));
-      destruct (le_pos_dicho (weight R1) (weight R2)).
-    + rewrite (Pos.min_l _ _ H9), (Pos.max_r _ _ H9),
-        (Pos.min_l _ _ H12), (Pos.max_r _ _ H12) in *.
-      apply weight_size_le in H9 as Hsizel. apply weight_size_le in H12 as Hsizer.
-      rewrite (Nat.min_l _ _ Hsizel), (Nat.min_l _ _ Hsizer) in *.
-      apply split_weight in Heq as Hw; auto. simp weight in *.
-      assert (weight t + weight t0 <= weight L2 + weight R2)%positive
-        by (destruct b; simpl in *; lia).
-      apply split_size in Heq as Hs; auto. simp size in *.
-      assert (size t + size t0 <= size L2 + size R2)%nat by (destruct b; simpl in *; lia).
-      rewrite (Pos.max_r _ _ H13), (Pos.min_l _ _ H13), (Nat.min_l _ _ H14).
-      
-      repeat rewrite mul_add_log_distrib_l. unfold add_log. simpl.
-      assert (size t + size t0 <= size L2 + size R2)%nat by (destruct b; simpl in *; lia).
-      rewrite Nat.min_l; try lia. rewrite H7.
-      rewrite (Pos.mul_le_mono_r (log_of (size L1 * log (weight L1)))). aac_rewrite H.
-      rewrite (Pos.mul_le_mono_r (log_of (size R1 * log (weight R1)))). aac_rewrite H0.
-      nia.
-Qed.
-
-(*Inductive WTree : Z -> Set :=
-| WLeaf : WTree 1
-| WNode : forall n m, WTree n -> A -> WTree m -> WTree (n + m).
-
-Equations translate {n: Z} (wt: WTree n) : Tree :=
-| WLeaf => Leaf
-| WNode _ _ l k r => Node (translate l) k (translate r).
-
-Equations test (n: Z) (t: WTree n) : WTree n :=
-| n, WLeaf => WLeaf
-| n, WNode wl wr l k r with test wl l, test wr r => {
-  | a, b => WNode wl wr a k b
-  }.
-
-Recursive Extraction translate.
-
-Lemma weight_WTree : forall n (wt: WTree n), weight (translate wt) = n.
-Proof.
-  intros. funelim (translate wt).
-  - simp translate weight. auto.
-  - simp translate weight. rewrite H, H0. auto.
-Qed.
-
-Definition WTreeCast {n: Z} {m: Z} (H: n = m) (t: WTree n) : WTree m.
-  rewrite <- H. exact t. Show Proof.
-Qed.
-
-Lemma wtree_assoc : forall a b c, WTree (a + b + c) = WTree (a + (b + c)).
-Proof.
-  intros. rewrite Z.add_assoc. auto. Show Proof.
-Qed.
-
-Equations Wrotate_left (n: Z) (l: WTree n) (v: A) (m: Z) (r: WTree m) : WTree (n + m) :=
-| n, l, v, m, WLeaf => WNode n 1 l v WLeaf (* should not be called *)
-| n, l, v, m, WNode wrl wrr rl rv rr =>
-    WTreeCast (eq_sym (Z.add_assoc n wrl wrr)) (WNode (n + wrl) wrr (WNode n wrl l v rl) rv rr)
-.
-
-Equations Wrotate_right (n: Z) (l: WTree n) (v: A) (m: Z) (r: WTree m) : WTree (n + m) :=
-| n, WLeaf, v, m, r => WNode 1 m WLeaf v r (* should not be called *)
-| n, WNode wll wlr ll lv lr, v, m, r =>
-    WTreeCast (Z.add_assoc wll wlr m) (WNode wll (wlr + m) ll lv (WNode wlr m lr v r))
-.
-
-(*Set Equations Debug.*)
-
-Equations Wjoin_maybe_left_heavy (n: Z) (T__L: WTree n) (k: A) (m: Z) (T__R: WTree m) :
-  WTree (n + m) :=
-| n, T__L, k, m, T__R with not_left_heavyb n m => {
-  | true => WNode n m T__L k T__R
-  | false with T__L => {
-    | WLeaf => WNode 1 m T__L k T__R (* absurde *)
-    | WNode wl wc l k' c => WTreeCast (Z.add_assoc _ _ _) (
-       match Wjoin_maybe_left_heavy wc c k m T__R in WTree x return WTree (wl + x) with
-       | WLeaf => WNode wl 1 l k WLeaf (* absurde *)
-       | WNode wl1 wr1 l1 k1 r1 =>
-           match not_right_heavyb wl (wc + m) with
-           | true => WNode wl (wl1 + wr1) l k' (WNode wl1 wr1 l1 k1 r1)
-           | false =>
-               match (like_weightsb wl wl1, like_weightsb (wl + wl1) wr1) with
-               | (true, true) => Wrotate_left wl l k' (wl1 + wr1) (WNode wl1 wr1 l1 k1 r1)
-               | (true, false) =>
-                   Wrotate_left wl l k' (wl1 + wr1) (Wrotate_right wl1 l1 k1 wr1 r1)
-               | (false, _) => Wrotate_left wl l k' (wl1 + wr1) (Wrotate_right wl1 l1 k1 wr1 r1)
-               end
-           end
-       end)
-    }
-  }.
-
-(*Equations Wjoin_maybe_left_heavy (n: Z) (T__L: WTree n) (k: A) (m: Z) (T__R: WTree m) :
-  WTree (n + m) :=
-| n, T__L, k, m, T__R with not_left_heavyb n m => {
-  | true => WNode n m T__L k T__R
-  | false with T__L => {
-    | WLeaf => WNode 1 m T__L k T__R (* absurde *)
-    | WNode wl wc l k' c with Wjoin_maybe_left_heavy wc c k m T__R => {
-(*      | T' with T' => {
-        | WLeaf => WNode (wl + wc) m T__L k T__R (* absurde *)
-        | WNode wl1 wr1 l1 k1 r1 with not_right_heavyb wl (wc + m) => {
-          | true => WNode wl (wc + m) l k' T'
-          | false with like_weightsb wl wl1, like_weightsb (wl + wl1) wr1 => {
-            | true, true => Wrotate_left wl l k' (wc + m) T'
-            | true, false => Wrotate_left wl l k' (wl1 + wr1) (Wrotate_right wl1 l1 k1 wr1 r1)
-            | false, _ => Wrotate_left wl l k' (wl1 + wr1) (Wrotate_right wl1 l1 k1 wr1 r1)
-            }
-          }
-        }*)
-      | WLeaf => _
-      | WNode _ _ _ _ _ => WNode (wl + wc) m T__L k T__R
-      }
-    }
-  }.*)
-
-Lemma Wjoin_left_correct: forall {n} (T__L: WTree n) (k: A) {m} (T__R: WTree m),
-    translate (Wjoin_maybe_left_heavy n T__L k m T__R) =
-      join_maybe_left_heavy (translate T__L) k (translate T__R).
-Proof.
-  intros. funelim (Wjoin_maybe_left_heavy n T__L k m T__R).
-  - rewrite <- Heqcall. simp join_maybe_left_heavy. repeat rewrite weight_WTree. rewrite Heq.
-    simpl. simp translate. auto.
-  - Search (not_left_heavy _ _). exfalso. rewrite <- not_left_heavy_equiv_false in Heq.
-    contradict Heq. rewrite <- (weight_WTree _ T__R). apply left_heavy_Leaf_false.
-  - rewrite <- Heqcall. clear Heqcall. remember (Wjoin_maybe_left_heavy wc c k m T__R).
-    dependent destruction w.
-    + rewrite <- (weight_WTree _ T__R) in *. rewrite <- (weight_WTree _ c) in *.
-      remember (weight_ge_one (translate c)). remember (weight_ge_one (translate T__R)). lia.
-    + inversion x. Print existT.
-Qed.
-
-(*
-Equations join_maybe_right_heavy (T__L: Tree) (k: A) (T__R: Tree) : Tree :=
-| T__L, k, T__R with not_right_heavyb (weight T__L) (weight T__R) => {
-  | true => Node T__L k T__R
-  | false with T__R => {
-    | Leaf => Leaf (* absurde *)
-    | Node c k' r with join_maybe_right_heavy T__L k c  => {
-      | T' with T' => {
-        | Leaf => Leaf (* absurde *)
-        | Node l1 k1 r1 with not_left_heavyb (weight T') (weight r) => {
-          | true => Node T' k' r
-          | false with like_weightsb (weight r1) (weight r),
-              like_weightsb (weight l1) (weight r1 + weight r) => {
-            | true, true => rotate_right T' k' r
-            | _, _ => rotate_right (rotate_left l1 k1 r1) k' r
-            }
-          }
-        }
-      }
-    }
-  }.
-
-Definition join T__L k T__R :=
-  if not_left_heavyb (weight T__L) (weight T__R)
-  then join_maybe_right_heavy T__L k T__R
-  else join_maybe_left_heavy T__L k T__R.*)
- *)
-
-Open Scope Z_scope.
-
 Inductive WTree : Set :=
 | WLeaf : WTree
-| WNode : WTree -> A -> Z -> WTree -> WTree.
+| WNode : WTree -> A -> positive -> WTree -> WTree.
 
 Equations translate (t: WTree) : Tree :=
 | WLeaf => Leaf
 | WNode l k _ r => Node (translate l) k (translate r).
 
-Equations weightW (t: WTree) : Z :=
+Equations weightW (t: WTree) : positive :=
 | WLeaf => 1
 | WNode l _ _ r => weightW l + weightW r.
 
-Equations constant_weight (t: WTree) : Z :=
+Equations constant_weight (t: WTree) : positive :=
 | WLeaf => 1
 | WNode __ (* c'est absurde mais sinon ça marche pas... *) _ w _ => w.
 
+Open Scope positive_scope.
+
 Inductive WTreeCorrectWeights : WTree -> Prop :=
 | CorrectLeaf : WTreeCorrectWeights WLeaf
-| CorrectRec : forall l k (w: Z) r,
+| CorrectRec : forall l k w r,
     WTreeCorrectWeights l -> WTreeCorrectWeights r -> w = weightW l + weightW r ->
     WTreeCorrectWeights (WNode l k w r).
 
@@ -1447,14 +806,14 @@ Proof.
     rewrite WTreeCorrect_weight; auto.
   - inversion_clear H. subst. rewrite Heq2 in *. simp Wrotate_left. intuition.
     inversion_clear H3. subst. repeat rewrite WTreeCorrect_weight; auto.
-    repeat constructor; simp weightW; auto using Z.add_assoc.
+    repeat constructor; simp weightW; aac_reflexivity.
   - inversion_clear H. subst. rewrite Heq2 in *. intuition. inversion_clear H3. subst.
     destruct l1; simp Wrotate_right Wrotate_left; auto using WTreeCorrectWeights.
     inversion_clear H.
     repeat rewrite WTreeCorrect_weight; auto. subst. repeat constructor; simp weightW; auto.
     aac_reflexivity.
   - inversion_clear H. subst. rewrite Heq1 in *. intuition. inversion_clear H3. subst. destruct l1; simp Wrotate_right Wrotate_left; auto. inversion_clear H. subst.
-    repeat rewrite WTreeCorrect_weight; auto. repeat constructor; auto. simp weightW.
+    repeat rewrite WTreeCorrect_weight; auto. repeat constructor; eauto. simp weightW.
     aac_reflexivity.
 Qed.
 
@@ -1507,11 +866,11 @@ Proof.
     rewrite WTreeCorrect_weight; auto.
   - inversion_clear H0. subst. rewrite Heq2 in *. simp Wrotate_right. intuition.
     inversion_clear H3. subst. repeat rewrite WTreeCorrect_weight; auto.
-    repeat constructor; simp weightW; auto using Z.add_assoc.
+    repeat constructor; simp weightW; aac_reflexivity.
   - inversion_clear H0. subst. rewrite Heq2 in *. intuition. inversion_clear H3. subst.
     destruct r1; simp Wrotate_right Wrotate_left; auto using WTreeCorrectWeights.
     inversion_clear H4.
-    repeat rewrite WTreeCorrect_weight; auto. subst. repeat constructor; simp weightW; auto.
+    repeat rewrite WTreeCorrect_weight; auto. subst. repeat constructor; auto. simp weightW.
     aac_reflexivity.
   - inversion_clear H0. subst. rewrite Heq1 in *. intuition. inversion_clear H3. subst.
     destruct r1; simp Wrotate_right Wrotate_left; auto. inversion_clear H4. subst.
@@ -1550,7 +909,7 @@ Proof.
     inversion H1. subst. do 3 rewrite constant_weight_translate in *; auto.
     simp join_maybe_right_heavy. rewrite Heq3. simpl. simp translate in *. simpl. rewrite <- H3.
     simpl. repeat rewrite weightW_translate in *. simp weight.
-    rewrite Heq1. simpl. rewrite Heq0.
+    rewrite Heq1. simpl. rewrite Heq0. simpl.
     unfold join_maybe_right_heavy_clause_1_clause_2_clause_2_clause_1_clause_2_clause_2.
     rewrite Heq. simpl. destruct r1; auto.
   - inversion H0. subst. pose (WTreeCorrect_join_right T__L k c). intuition. rewrite Heq1 in *.

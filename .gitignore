@@ -5,4 +5,5 @@ Makefile.coq*
 *.aux
 *.glob
 .lia.cache
+.nia.cache
 *\#*

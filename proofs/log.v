@@ -11,24 +11,25 @@ Record logtype : Set := log {
     log_of : positive
   }.
 
+#[export] Instance pos_le_trans : Transitive Pos.le := Pos.le_trans.
+#[export] Instance pos_le_refl : Reflexive Pos.le := Pos.le_refl.
 
+#[export] Instance mul_pos_le_mono : Proper (Pos.le ==> Pos.le ==> Pos.le) Pos.mul.
+unfold Proper. unfold "==>". intros. apply Pos.mul_le_mono; auto.
+Qed.
+
+#[export] Instance add_pos_le_mono : Proper (Pos.le ==> Pos.le ==> Pos.le) Pos.add.
+unfold Proper. unfold "==>". intros. apply Pos.add_le_mono; auto.
+Qed.
 
 Lemma le_pos_dicho : forall a b, (a <= b \/ b <= a)%positive.
 Proof.
   lia.
 Qed.
 
-Definition add_log (a: logtype) (b: logtype) := log (log_of a * log_of b).
-
 Declare Scope log_scope.
 
 Bind Scope log_scope with logtype.
-
-Notation "a + b" := (add_log a b) : log_scope.
-
-Equations as_log (x: nat) : logtype :=
-| O => log 1
-| S x => log 2 + as_log x.
 
 Definition lt_log (a: logtype) (b: logtype) := log_of a < log_of b.
 
@@ -50,10 +51,24 @@ Qed.
 unfold Reflexive, le_log. lia.
 Qed.
 
+#[export] Instance log_le_mono : Proper (Pos.le ==> le_log) log.
+Proof.
+  unfold Proper, "==>", le_log. simpl. auto.
+Qed.
+
+Open Scope log_scope.
+
 Lemma le_log_dicho : forall a b, a <= b \/ b <= a.
 Proof.
   intros. apply le_pos_dicho.
 Qed.
+
+Lemma le_log_le : forall a b, (a <= b)%positive <-> log a <= log b.
+Proof.
+  unfold le_log. simpl. tauto.
+Qed.
+
+Close Scope log_scope.
 
 Definition gt_log (a: logtype) (b: logtype) := log_of a > log_of b.
 
@@ -70,12 +85,6 @@ Notation "a >= b" := (ge_log a b) : log_scope.
 #[export] Instance ge_log_trans : Transitive ge_log.
 unfold Transitive, ge_log. lia.
 Qed.
-
-Definition max_log (a: logtype) (b: logtype) := log (Pos.max (log_of a) (log_of b)).
-
-Definition min_log (a: logtype) (b: logtype) := log (Pos.min (log_of a) (log_of b)).
-
-Definition floor (a: logtype) := Nat.pred (Pos.size_nat (log_of a)).
 
 Open Scope log_scope.
 
@@ -109,16 +118,9 @@ Proof.
   - destruct a. destruct b. simpl in *. subst. auto.
 Qed.
 
-#[export] Instance pos_le_trans : Transitive Pos.le := Pos.le_trans.
-#[export] Instance pos_le_refl : Reflexive Pos.le := Pos.le_refl.
+Definition add_log (a: logtype) (b: logtype) := log (log_of a * log_of b).
 
-#[export] Instance mul_pos_le_mono : Proper (Pos.le ==> Pos.le ==> Pos.le) Pos.mul.
-unfold Proper. unfold "==>". intros. apply Pos.mul_le_mono; auto.
-Qed.
-
-#[export] Instance add_pos_le_mono : Proper (Pos.le ==> Pos.le ==> Pos.le) Pos.add.
-unfold Proper. unfold "==>". intros. apply Pos.add_le_mono; auto.
-Qed.
+Notation "a + b" := (add_log a b) : log_scope.
 
 #[export] Instance add_log_le_mono : Proper (le_log ==> le_log ==> le_log) add_log.
 unfold le_log, add_log. intro. intros. intro. intros. simpl in *. nia.
@@ -135,6 +137,11 @@ Proof.
   aac_reflexivity.
 Qed.
 
+Lemma add_log_mul : forall a b, log a + log b = log (a * b).
+Proof.
+  unfold add_log. simpl. auto.
+Qed.
+
 Lemma add_lt_log_mono_l : forall a b c, b < c -> a + b < a + c.
 Proof.
   unfold lt_log, add_log. intros. simpl. apply Pos.mul_lt_mono_l. auto.
@@ -145,38 +152,38 @@ Proof.
   unfold le_log, add_log. intros. simpl. apply Pos.mul_le_mono_l. auto.
 Qed.
 
-Lemma add_gt_log_mono_l : forall a b c, b > c -> a + b > a + c.
+Lemma add_gt_log_mono_l : forall a b c, b > c <-> a + b > a + c.
 Proof.
   unfold gt_log, add_log. intros. simpl.
-  rewrite Pos.gt_lt_iff in *. apply Pos.mul_lt_mono_l. auto.
+  repeat rewrite Pos.gt_lt_iff in *. apply Pos.mul_lt_mono_l.
 Qed.
 
-Lemma add_ge_log_mono_l : forall a b c, b >= c -> a + b >= a + c.
+Lemma add_ge_log_mono_l : forall a b c, b >= c <-> a + b >= a + c.
 Proof.
-  unfold ge_log, add_log. intros. simpl. rewrite Pos.ge_le_iff in *.
-  apply Pos.mul_le_mono_l. auto.
+  unfold ge_log, add_log. intros. simpl. repeat rewrite Pos.ge_le_iff in *.
+  apply Pos.mul_le_mono_l.
 Qed.
 
-Lemma add_lt_log_mono_r : forall a b c, b < c -> b + a < c + a.
+Lemma add_lt_log_mono_r : forall a b c, b < c <-> b + a < c + a.
 Proof.
-  unfold lt_log, add_log. intros. simpl. apply Pos.mul_lt_mono_r. auto.
+  unfold lt_log, add_log. intros. simpl. apply Pos.mul_lt_mono_r.
 Qed.
 
-Lemma add_le_log_mono_r : forall a b c, b <= c -> b + a <= c + a.
+Lemma add_le_log_mono_r : forall a b c, b <= c <-> b + a <= c + a.
 Proof.
-  unfold le_log, add_log. intros. simpl. apply Pos.mul_le_mono_r. auto.
+  unfold le_log, add_log. intros. simpl. apply Pos.mul_le_mono_r.
 Qed.
 
-Lemma add_gt_log_mono_r : forall a b c, b > c -> b + a > c + a.
+Lemma add_gt_log_mono_r : forall a b c, b > c <-> b + a > c + a.
 Proof.
-  unfold gt_log, add_log. intros. simpl.
-  rewrite Pos.gt_lt_iff in *. apply Pos.mul_lt_mono_r. auto.
+  unfold gt_log, add_log. intros. simpl. repeat rewrite Pos.gt_lt_iff in *.
+  apply Pos.mul_lt_mono_r.
 Qed.
 
-Lemma add_ge_log_mono_r : forall a b c, b >= c -> b + a >= c + a.
+Lemma add_ge_log_mono_r : forall a b c, b >= c <-> b + a >= c + a.
 Proof.
-  unfold ge_log, add_log. intros. simpl. rewrite Pos.ge_le_iff in *.
-  apply Pos.mul_le_mono_r. auto.
+  unfold ge_log, add_log. intros. simpl. repeat rewrite Pos.ge_le_iff in *.
+  apply Pos.mul_le_mono_r.
 Qed.
 
 Lemma add_log_le_r : forall a b, a <= a + b.
@@ -194,6 +201,8 @@ Qed.
 #[export] Instance log1_unit_add : Unit eq add_log (log 1).
 constructor; unfold add_log; intro; rewrite eq_log_equiv; simpl; lia.
 Qed.
+
+Definition max_log (a: logtype) (b: logtype) := log (Pos.max (log_of a) (log_of b)).
 
 #[export] Instance max_log_le_mono : Proper (le_log ==> le_log ==> le_log) max_log.
 unfold Proper, "==>", max_log, le_log. simpl. lia.
@@ -267,6 +276,8 @@ Qed.
 #[export] Instance aac_log_max_Comm : Commutative eq max_log := max_log_comm.
 #[export] Instance aac_log_max_Idem : Idempotent eq max_log := max_log_idempotent.
 
+Definition min_log (a: logtype) (b: logtype) := log (Pos.min (log_of a) (log_of b)).
+
 #[export] Instance min_log_le_mono : Proper (le_log ==> le_log ==> le_log) min_log.
 unfold Proper, "==>", min_log, le_log. simpl. lia.
 Qed.
@@ -333,6 +344,10 @@ Qed.
 #[export] Instance aac_log_min_Assoc : Associative eq min_log := min_log_assoc.
 #[export] Instance aac_log_min_Comm : Commutative eq min_log := min_log_comm.
 #[export] Instance aac_log_min_Idem : Idempotent eq min_log := min_log_idempotent.
+
+Equations as_log (x: nat) : logtype :=
+| O => log 1
+| S x => log 2 + as_log x.
 
 Lemma as_log_add : forall a b, as_log (a + b) = as_log a + as_log b.
 Proof.
@@ -419,6 +434,37 @@ Proof.
     rewrite Pos.max_r; auto. apply Pos.mul_le_mono; auto.
   - rewrite (Pos.max_l _ _ H). apply (mul_le_log_mono_l n) in H as H0. rewrite (Pos.max_l _ _ H0).
     rewrite Pos.max_l; auto. apply Pos.mul_le_mono; auto.
+Qed.
+
+Definition log_sum (a: positive) (b: positive) := log (a + b).
+
+#[export] Instance sum_log_le_mono : Proper (Pos.le ==> Pos.le ==> le_log) log_sum.
+Proof.
+  unfold Proper, "==>", le_log, log_sum. simpl. intros. rewrite H. rewrite H0. reflexivity.
+Qed.
+
+Lemma log_sum_le_mono_l : forall a b c, (b <= c)%positive -> log_sum a b <= log_sum a c.
+Proof.
+  intros. rewrite H. reflexivity.
+Qed.
+
+Lemma log_sum_le_mono_r : forall a b c, (b <= c)%positive -> log_sum b a <= log_sum c a.
+Proof.
+  intros. rewrite H. reflexivity.
+Qed.
+
+Lemma log_sum_le_l : forall a b, log a <= log_sum a b.
+Proof.
+  unfold log_sum, le_log. simpl. lia.
+Qed.
+
+Lemma log_sum_le_r : forall a b, log b <= log_sum a b.
+Proof.
+  unfold log_sum, le_log. simpl. lia.
+Qed.
+
+Lemma log_sum_add_log : forall a b c, log c + log_sum a b = log_sum (c * a) (c * b).
+  unfold log_sum, add_log. intros. rewrite eq_log_equiv. simpl. lia.
 Qed.
 
 Close Scope log_scope.
