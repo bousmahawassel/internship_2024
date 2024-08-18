@@ -8,7 +8,7 @@ Import Peano.
 Open Scope positive_scope.
 
 Record logtype : Set := log {
-    log_of : positive
+    exp : positive
   }.
 
 #[export] Instance pos_le_trans : Transitive Pos.le := Pos.le_trans.
@@ -31,7 +31,7 @@ Declare Scope log_scope.
 
 Bind Scope log_scope with logtype.
 
-Definition lt_log (a: logtype) (b: logtype) := log_of a < log_of b.
+Definition lt_log (a: logtype) (b: logtype) := exp a < exp b.
 
 Notation "a < b" := (lt_log a b) : log_scope.
 
@@ -39,7 +39,7 @@ Notation "a < b" := (lt_log a b) : log_scope.
 unfold Transitive, lt_log. lia.
 Qed.
 
-Definition le_log (a: logtype) (b: logtype) := log_of a <= log_of b.
+Definition le_log (a: logtype) (b: logtype) := exp a <= exp b.
 
 Notation "a <= b" := (le_log a b) : log_scope.
 
@@ -70,7 +70,7 @@ Qed.
 
 Close Scope log_scope.
 
-Definition gt_log (a: logtype) (b: logtype) := log_of a > log_of b.
+Definition gt_log (a: logtype) (b: logtype) := exp a > exp b.
 
 Notation "a > b" := (gt_log a b) : log_scope.
 
@@ -78,7 +78,7 @@ Notation "a > b" := (gt_log a b) : log_scope.
 unfold Transitive, gt_log. lia.
 Qed.
 
-Definition ge_log (a: logtype) (b: logtype) := log_of a >= log_of b.
+Definition ge_log (a: logtype) (b: logtype) := exp a >= exp b.
 
 Notation "a >= b" := (ge_log a b) : log_scope.
 
@@ -98,9 +98,9 @@ Lemma acc_pos_log : forall p, Acc Pos.lt p <-> Acc lt_log (log p).
 Proof.
   intuition.
   - induction H. constructor. intro. destruct y. unfold lt_log. simpl. intro. apply H0. auto.
-  - remember (log p). replace p with (log_of l).
+  - remember (log p). replace p with (exp l).
     + clear dependent p. induction H. constructor. intros. remember (log y).
-      replace y with (log_of l).
+      replace y with (exp l).
       * assert (l < x). { unfold lt_log. rewrite Heql. simpl. auto. }
         auto.
       * rewrite Heql; auto.
@@ -111,14 +111,14 @@ Qed.
 intro. destruct a. rewrite <- acc_pos_log. apply wf_pos_lt.
 Qed.
 
-Lemma eq_log_equiv : forall a b, a = b <-> log_of a = log_of b.
+Lemma eq_log_equiv : forall a b, a = b <-> exp a = exp b.
 Proof.
   intuition.
   - destruct a. destruct b. inversion H. subst. auto.
   - destruct a. destruct b. simpl in *. subst. auto.
 Qed.
 
-Definition add_log (a: logtype) (b: logtype) := log (log_of a * log_of b).
+Definition add_log (a: logtype) (b: logtype) := log (exp a * exp b).
 
 Notation "a + b" := (add_log a b) : log_scope.
 
@@ -202,7 +202,7 @@ Qed.
 constructor; unfold add_log; intro; rewrite eq_log_equiv; simpl; lia.
 Qed.
 
-Definition max_log (a: logtype) (b: logtype) := log (Pos.max (log_of a) (log_of b)).
+Definition max_log (a: logtype) (b: logtype) := log (Pos.max (exp a) (exp b)).
 
 #[export] Instance max_log_le_mono : Proper (le_log ==> le_log ==> le_log) max_log.
 unfold Proper, "==>", max_log, le_log. simpl. lia.
@@ -267,7 +267,7 @@ Proof.
   apply Pos.mul_max_distr_l.
 Qed.
 
-Lemma log_of_add : forall a b, log_of (a + b) = log_of a * log_of b.
+Lemma exp_add : forall a b, exp (a + b) = exp a * exp b.
 Proof.
   unfold add_log. simpl. auto.
 Qed.
@@ -276,7 +276,7 @@ Qed.
 #[export] Instance aac_log_max_Comm : Commutative eq max_log := max_log_comm.
 #[export] Instance aac_log_max_Idem : Idempotent eq max_log := max_log_idempotent.
 
-Definition min_log (a: logtype) (b: logtype) := log (Pos.min (log_of a) (log_of b)).
+Definition min_log (a: logtype) (b: logtype) := log (Pos.min (exp a) (exp b)).
 
 #[export] Instance min_log_le_mono : Proper (le_log ==> le_log ==> le_log) min_log.
 unfold Proper, "==>", min_log, le_log. simpl. lia.
@@ -402,7 +402,7 @@ Qed.
 Lemma mul_le_log_mono_r : forall n m a, (n <= m)%nat -> n * a <= m * a.
 Proof.
   intros. induction H; simp mul_log; unfold le_log; try lia.
-  unfold add_log. simpl. replace (log_of (n * a)) with ((log_of (n * a)) * 1)%positive by lia.
+  unfold add_log. simpl. replace (exp (n * a)) with ((exp (n * a)) * 1)%positive by lia.
   apply Pos.mul_le_mono; auto. lia.
 Qed.
 
@@ -429,7 +429,7 @@ Lemma mul_max_log_distrib_r : forall n a b, n * (max_log a b) = max_log (n * a) 
 Proof.
   intros. induction n; simp mul_log; unfold max_log in *; simpl; auto. rewrite IHn.
   unfold add_log. simpl. apply eq_log_equiv. simpl.
-  destruct (le_pos_dicho (log_of a) (log_of b)).
+  destruct (le_pos_dicho (exp a) (exp b)).
   - rewrite (Pos.max_r _ _ H). apply (mul_le_log_mono_l n) in H as H0. rewrite (Pos.max_r _ _ H0).
     rewrite Pos.max_r; auto. apply Pos.mul_le_mono; auto.
   - rewrite (Pos.max_l _ _ H). apply (mul_le_log_mono_l n) in H as H0. rewrite (Pos.max_l _ _ H0).
